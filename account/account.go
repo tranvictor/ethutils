@@ -24,13 +24,11 @@ func (self *Account) Address() string {
 }
 
 func (self *Account) GetMinedNonce() (uint64, error) {
-	_, nonce, err := self.reader.GetMinedNonce(self.Address())
-	return nonce, err
+	return self.reader.GetMinedNonce(self.Address())
 }
 
 func (self *Account) GetPendingNonce() (uint64, error) {
-	_, nonce, err := self.reader.GetPendingNonce(self.Address())
-	return nonce, err
+	return self.reader.GetPendingNonce(self.Address())
 }
 
 func (self *Account) ListOfPendingNonces() ([]uint64, error) {
@@ -64,7 +62,7 @@ func (self *Account) SendAllETHWithPrice(priceGwei float64, to string) (tx *type
 	if err != nil {
 		return nil, false, fmt.Errorf("cannot get nonce: %s", err)
 	}
-	_, balance, err := self.reader.GetBalance(self.Address())
+	balance, err := self.reader.GetBalance(self.Address())
 	if err != nil {
 		return nil, false, fmt.Errorf("cannot get balance: %s", err)
 	}
@@ -84,7 +82,7 @@ func (self *Account) SendAllETH(to string) (tx *types.Transaction, broadcasted b
 	if err != nil {
 		return nil, false, fmt.Errorf("cannot get recommended gas price: %s", err)
 	}
-	_, balance, err := self.reader.GetBalance(self.Address())
+	balance, err := self.reader.GetBalance(self.Address())
 	if err != nil {
 		return nil, false, fmt.Errorf("cannot get balance: %s", err)
 	}

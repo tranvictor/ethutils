@@ -242,8 +242,8 @@ func (self *EthReader) RecommendedGasPrice() (float64, error) {
 	return self.latestGasPrice, nil
 }
 
-func (self *EthReader) GetBalance(address string) (errors map[string]error, balance *big.Int, err error) {
-	errors = map[string]error{}
+func (self *EthReader) GetBalance(address string) (balance *big.Int, err error) {
+  errors := map[string]error{}
 	acc := common.HexToAddress(address)
 	for name, client := range self.clients {
 		ethcli := ethclient.NewClient(client)
@@ -251,16 +251,16 @@ func (self *EthReader) GetBalance(address string) (errors map[string]error, bala
 		balance, err = ethcli.BalanceAt(timeout, acc, nil)
 		defer cancel()
 		if err == nil {
-			return errors, balance, err
+			return balance, err
 		} else {
 			errors[name] = err
 		}
 	}
-	return errors, balance, fmt.Errorf("couldn't get nonce from any nodes")
+	return balance, makeError(errors)
 }
 
-func (self *EthReader) GetMinedNonce(address string) (errors map[string]error, nonce uint64, err error) {
-	errors = map[string]error{}
+func (self *EthReader) GetMinedNonce(address string) (nonce uint64, err error) {
+  errors := map[string]error{}
 	acc := common.HexToAddress(address)
 	for name, client := range self.clients {
 		ethcli := ethclient.NewClient(client)
@@ -268,16 +268,16 @@ func (self *EthReader) GetMinedNonce(address string) (errors map[string]error, n
 		nonce, err = ethcli.NonceAt(timeout, acc, nil)
 		defer cancel()
 		if err == nil {
-			return errors, nonce, err
+			return nonce, err
 		} else {
 			errors[name] = err
 		}
 	}
-	return errors, nonce, fmt.Errorf("couldn't get nonce from any nodes")
+	return nonce, makeError(errors)
 }
 
-func (self *EthReader) GetPendingNonce(address string) (errors map[string]error, nonce uint64, err error) {
-	errors = map[string]error{}
+func (self *EthReader) GetPendingNonce(address string) (nonce uint64, err error) {
+  errors := map[string]error{}
 	acc := common.HexToAddress(address)
 	for name, client := range self.clients {
 		ethcli := ethclient.NewClient(client)
@@ -285,12 +285,12 @@ func (self *EthReader) GetPendingNonce(address string) (errors map[string]error,
 		nonce, err = ethcli.PendingNonceAt(timeout, acc)
 		defer cancel()
 		if err == nil {
-			return errors, nonce, err
+			return nonce, err
 		} else {
 			errors[name] = err
 		}
 	}
-	return errors, nonce, fmt.Errorf("couldn't get nonce from any nodes")
+	return nonce, makeError(errors)
 }
 
 func (self *EthReader) TransactionReceipt(txHash string) (receipt *types.Receipt, err error) {
