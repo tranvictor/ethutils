@@ -12,15 +12,15 @@ import (
 )
 
 type DefaultAddressDatabase struct {
-	data map[common.Address]string
+	Data map[common.Address]string
 }
 
 func (self *DefaultAddressDatabase) Register(addr string, name string) {
-	self.data[common.HexToAddress(addr)] = name
+	self.Data[common.HexToAddress(addr)] = name
 }
 
 func (self *DefaultAddressDatabase) GetName(addr string) string {
-	name, found := self.data[common.HexToAddress(addr)]
+	name, found := self.Data[common.HexToAddress(addr)]
 	if found {
 		return name
 	} else {
@@ -77,7 +77,7 @@ func NewDefaultAddressDatabase() *DefaultAddressDatabase {
 	data := getDataFromDefaultFile()
 
 	db := &DefaultAddressDatabase{
-		data: map[common.Address]string{},
+		Data: map[common.Address]string{},
 	}
 
 	for addr, name := range data {
