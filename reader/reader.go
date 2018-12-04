@@ -149,7 +149,7 @@ func (self *EthReader) EstimateGas(from, to string, priceGwei, value float64, da
 		})
 		defer cancel()
 		if err == nil {
-			return gas + 300000, err
+			return gas, err
 		} else {
 			errors[name] = err
 		}
