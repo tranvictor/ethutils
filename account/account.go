@@ -290,3 +290,16 @@ func NewTrezorAccount(path string, address string) (*Account, error) {
 		common.HexToAddress(address),
 	}, nil
 }
+
+func NewRopstenTrezorAccount(path string, address string) (*Account, error) {
+	signer, err := NewTrezorSigner(path, address)
+	if err != nil {
+		return nil, err
+	}
+	return &Account{
+		signer,
+		reader.NewRopstenReader(),
+		broadcaster.NewRopstenBroadcaster(),
+		common.HexToAddress(address),
+	}, nil
+}
