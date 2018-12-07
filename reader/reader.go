@@ -419,3 +419,18 @@ func (self *EthReader) ERC20Decimal(caddr string) (int64, error) {
 	err = self.ReadContractWithABI(&result, caddr, abi, "decimals")
 	return int64(result), err
 }
+
+func (self *EthReader) ERC20Allowance(caddr string, owner string, spender string) (*big.Int, error) {
+	abi, err := self.GetABIFromFile("erc20.abi")
+	if err != nil {
+		return nil, err
+	}
+	result := big.NewInt(0)
+	err = self.ReadContractWithABI(
+    &result, caddr, abi,
+    "allowance",
+    eu.HexToAddress(owner),
+    eu.HexToAddress(spender),
+  )
+	return result, err
+}

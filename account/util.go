@@ -29,6 +29,14 @@ func AddressFromPrivateKey(key *ecdsa.PrivateKey) string {
 	return crypto.PubkeyToAddress(key.PublicKey).Hex()
 }
 
+func AddressFromHex(hex string) (string, error) {
+  key, err := crypto.HexToECDSA(hex[2:])
+  if err != nil {
+    return "", err
+  }
+  return AddressFromPrivateKey(key), nil
+}
+
 func PrivateKeyFromKeystore(file string, password string) (string, *ecdsa.PrivateKey, error) {
 	json, err := ioutil.ReadFile(file)
 	if err != nil {

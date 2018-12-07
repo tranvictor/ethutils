@@ -57,6 +57,14 @@ func (self *Account) SendETHWithNonceAndPrice(nonce uint64, priceGwei float64, e
 	return signedTx, broadcasted, errors
 }
 
+func (self *Account) ERC20Balance(tokenAddr string) (*big.Int, error) {
+  return self.reader.ERC20Balance(tokenAddr, self.Address())
+}
+
+func (self *Account) ETHBalance() (*big.Int, error) {
+	return self.reader.GetBalance(self.Address())
+}
+
 func (self *Account) SendAllETHWithPrice(priceGwei float64, to string) (tx *types.Transaction, broadcasted bool, errors error) {
 	nonce, err := self.GetMinedNonce()
 	if err != nil {
@@ -91,6 +99,17 @@ func (self *Account) SendAllETH(to string) (tx *types.Transaction, broadcasted b
 		return nil, false, fmt.Errorf("not enough to do a tx with gas price: %f gwei", priceGwei)
 	}
 	return self.SendETHWithNonceAndPrice(nonce, priceGwei, amount, to)
+}
+
+func (self *Account) SetERC20Allowance(tokenAddr string, spender string, tokenAmount float64) (tx *types.Transaction, broadcasted bool, errors error) {
+	decimals, err := self.reader.ERC20Decimal(tokenAddr)
+	if err != nil {
+		return nil, false, fmt.Errorf("cannot get token decimal: %s", err)
+	}
+	amount := ethutils.FloatToBigInt(tokenAmount, decimals)
+	return self.CallContract(
+    0, tokenAddr, "approve",
+    ethutils.HexToAddress(spender), amount)
 }
 
 func (self *Account) SendERC20(tokenAddr string, tokenAmount float64, to string) (tx *types.Transaction, broadcasted bool, errors error) {
