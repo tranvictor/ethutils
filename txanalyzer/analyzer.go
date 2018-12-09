@@ -1,8 +1,8 @@
 package txanalyzer
 
 import (
+	"bytes"
 	"fmt"
-  "bytes"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"

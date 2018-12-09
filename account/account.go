@@ -58,7 +58,7 @@ func (self *Account) SendETHWithNonceAndPrice(nonce uint64, priceGwei float64, e
 }
 
 func (self *Account) ERC20Balance(tokenAddr string) (*big.Int, error) {
-  return self.reader.ERC20Balance(tokenAddr, self.Address())
+	return self.reader.ERC20Balance(tokenAddr, self.Address())
 }
 
 func (self *Account) ETHBalance() (*big.Int, error) {
@@ -108,8 +108,8 @@ func (self *Account) SetERC20Allowance(tokenAddr string, spender string, tokenAm
 	}
 	amount := ethutils.FloatToBigInt(tokenAmount, decimals)
 	return self.CallContract(
-    0, tokenAddr, "approve",
-    ethutils.HexToAddress(spender), amount)
+		150000, 0, tokenAddr, "approve",
+		ethutils.HexToAddress(spender), amount)
 }
 
 func (self *Account) SendERC20(tokenAddr string, tokenAmount float64, to string) (tx *types.Transaction, broadcasted bool, errors error) {
@@ -118,7 +118,7 @@ func (self *Account) SendERC20(tokenAddr string, tokenAmount float64, to string)
 		return nil, false, fmt.Errorf("cannot get token decimal: %s", err)
 	}
 	amount := ethutils.FloatToBigInt(tokenAmount, decimals)
-	return self.CallContract(0, tokenAddr, "transfer", ethutils.HexToAddress(to), amount)
+	return self.CallContract(150000, 0, tokenAddr, "transfer", ethutils.HexToAddress(to), amount)
 }
 
 func (self *Account) SendETH(ethAmount float64, to string) (tx *types.Transaction, broadcasted bool, errors error) {
@@ -187,17 +187,18 @@ func (self *Account) SendETHToMultipleAddresses(amounts []float64, addresses []s
 }
 
 func (self *Account) CallContractWithPrice(
-	priceGwei float64, value float64, caddr string, function string,
+	priceGwei float64, extraGas uint64, value float64, caddr string, function string,
 	params ...interface{}) (tx *types.Transaction, broadcasted bool, errors error) {
 	nonce, err := self.GetMinedNonce()
 	if err != nil {
 		return nil, false, fmt.Errorf("cannot get nonce: %s", err)
 	}
 	return self.CallContractWithNonceAndPrice(
-		nonce, priceGwei, value, caddr, function, params...)
+		nonce, priceGwei, extraGas, value, caddr, function, params...)
 }
 
 func (self *Account) CallContract(
+	extraGas uint64,
 	value float64, caddr string, function string,
 	params ...interface{}) (tx *types.Transaction, broadcasted bool, errors error) {
 	nonce, err := self.GetMinedNonce()
@@ -209,7 +210,7 @@ func (self *Account) CallContract(
 		return nil, false, fmt.Errorf("cannot get recommended gas price: %s", err)
 	}
 	return self.CallContractWithNonceAndPrice(
-		nonce, priceGwei, value, caddr, function, params...)
+		nonce, priceGwei, extraGas, value, caddr, function, params...)
 }
 
 func (self *Account) PackData(caddr string, function string, params ...interface{}) ([]byte, error) {
@@ -221,7 +222,7 @@ func (self *Account) PackData(caddr string, function string, params ...interface
 }
 
 func (self *Account) CallContractWithNonceAndPrice(
-	nonce uint64, priceGwei float64,
+	nonce uint64, priceGwei float64, extraGas uint64,
 	value float64, caddr string, function string,
 	params ...interface{}) (tx *types.Transaction, broadcasted bool, errors error) {
 	if value < 0 {
@@ -236,6 +237,7 @@ func (self *Account) CallContractWithNonceAndPrice(
 	if err != nil {
 		return nil, false, fmt.Errorf("Cannot estimate gas: %s", err)
 	}
+	gasLimit += extraGas
 	tx = ethutils.BuildTx(nonce, caddr, value, gasLimit, priceGwei, data)
 	signedTx, err := self.signer.SignTx(tx)
 	if err != nil {
