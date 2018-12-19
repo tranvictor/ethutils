@@ -53,7 +53,7 @@ func PrivateKeyFromKeystore(file string, password string) (string, *ecdsa.Privat
 // works with both 0x prefix form and naked form
 func PrivateKeyFromHex(hex string) (string, *ecdsa.PrivateKey, error) {
 	if hex[0:2] == "0x" {
-		hex = hex[0:2]
+		hex = hex[2:]
 	}
 	privkey, err := crypto.HexToECDSA(hex)
 	if err != nil {
