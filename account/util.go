@@ -30,11 +30,11 @@ func AddressFromPrivateKey(key *ecdsa.PrivateKey) string {
 }
 
 func AddressFromHex(hex string) (string, error) {
-  key, err := crypto.HexToECDSA(hex[2:])
-  if err != nil {
-    return "", err
-  }
-  return AddressFromPrivateKey(key), nil
+	key, err := crypto.HexToECDSA(hex[2:])
+	if err != nil {
+		return "", err
+	}
+	return AddressFromPrivateKey(key), nil
 }
 
 func PrivateKeyFromKeystore(file string, password string) (string, *ecdsa.PrivateKey, error) {
@@ -48,6 +48,20 @@ func PrivateKeyFromKeystore(file string, password string) (string, *ecdsa.Privat
 	}
 	pubhex := AddressFromPrivateKey(key.PrivateKey)
 	return pubhex, key.PrivateKey, nil
+}
+
+// works with both 0x prefix form and naked form
+func PrivateKeyFromHex(hex string) (string, *ecdsa.PrivateKey, error) {
+	if hex[0:2] == "0x" {
+		hex = hex[0:2]
+	}
+	privkey, err := crypto.HexToECDSA(hex)
+	if err != nil {
+		return "", nil, err
+	} else {
+		pubhex := AddressFromPrivateKey(privkey)
+		return pubhex, privkey, nil
+	}
 }
 
 func PrivateKeyFromFile(file string) (string, *ecdsa.PrivateKey, error) {

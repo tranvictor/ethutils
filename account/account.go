@@ -286,6 +286,19 @@ func NewRopstenAccountFromPrivateKeyFile(file string) (*Account, error) {
 	}, nil
 }
 
+func NewAccountFromPrivateKey(hex string) (*Account, error) {
+	_, key, err := PrivateKeyFromHex(hex)
+	if err != nil {
+		return nil, err
+	}
+	return &Account{
+		NewKeySigner(key),
+		reader.NewEthReader(),
+		broadcaster.NewBroadcaster(),
+		crypto.PubkeyToAddress(key.PublicKey),
+	}, nil
+}
+
 func NewAccountFromPrivateKeyFile(file string) (*Account, error) {
 	_, key, err := PrivateKeyFromFile(file)
 	if err != nil {
