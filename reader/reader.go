@@ -91,23 +91,6 @@ type abiresponse struct {
 	Result  string `json:"result"`
 }
 
-func (self *EthReader) GetABIFromFile(filename string) (*abi.ABI, error) {
-	_, current, _, ok := runtime.Caller(0)
-	if !ok {
-		return nil, fmt.Errorf("couldn't get filepath of the caller")
-	}
-	content, err := ioutil.ReadFile(path.Join(path.Dir(current), filename))
-	if err != nil {
-		return nil, err
-	}
-
-	result, err := abi.JSON(strings.NewReader(string(content)))
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
 func (self *EthReader) GetABI(address string) (*abi.ABI, error) {
 	resp, err := http.Get(fmt.Sprintf("https://api.etherscan.io/api?module=contract&action=getabi&address=%s&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV", address))
 	if err != nil {
@@ -243,7 +226,7 @@ func (self *EthReader) RecommendedGasPrice() (float64, error) {
 }
 
 func (self *EthReader) GetBalance(address string) (balance *big.Int, err error) {
-  errors := map[string]error{}
+	errors := map[string]error{}
 	acc := common.HexToAddress(address)
 	for name, client := range self.clients {
 		ethcli := ethclient.NewClient(client)
@@ -260,7 +243,7 @@ func (self *EthReader) GetBalance(address string) (balance *big.Int, err error) 
 }
 
 func (self *EthReader) GetMinedNonce(address string) (nonce uint64, err error) {
-  errors := map[string]error{}
+	errors := map[string]error{}
 	acc := common.HexToAddress(address)
 	for name, client := range self.clients {
 		ethcli := ethclient.NewClient(client)
@@ -277,7 +260,7 @@ func (self *EthReader) GetMinedNonce(address string) (nonce uint64, err error) {
 }
 
 func (self *EthReader) GetPendingNonce(address string) (nonce uint64, err error) {
-  errors := map[string]error{}
+	errors := map[string]error{}
 	acc := common.HexToAddress(address)
 	for name, client := range self.clients {
 		ethcli := ethclient.NewClient(client)
@@ -401,7 +384,7 @@ func (self *EthReader) ReadContract(result interface{}, caddr string, method str
 }
 
 func (self *EthReader) ERC20Balance(caddr string, user string) (*big.Int, error) {
-	abi, err := self.GetABIFromFile("erc20.abi")
+	abi, err := eu.GetERC20ABI()
 	if err != nil {
 		return nil, err
 	}
@@ -411,7 +394,7 @@ func (self *EthReader) ERC20Balance(caddr string, user string) (*big.Int, error)
 }
 
 func (self *EthReader) ERC20Decimal(caddr string) (int64, error) {
-	abi, err := self.GetABIFromFile("erc20.abi")
+	abi, err := eu.GetERC20ABI()
 	if err != nil {
 		return 0, err
 	}
@@ -421,16 +404,16 @@ func (self *EthReader) ERC20Decimal(caddr string) (int64, error) {
 }
 
 func (self *EthReader) ERC20Allowance(caddr string, owner string, spender string) (*big.Int, error) {
-	abi, err := self.GetABIFromFile("erc20.abi")
+	abi, err := eu.GetERC20ABI()
 	if err != nil {
 		return nil, err
 	}
 	result := big.NewInt(0)
 	err = self.ReadContractWithABI(
-    &result, caddr, abi,
-    "allowance",
-    eu.HexToAddress(owner),
-    eu.HexToAddress(spender),
-  )
+		&result, caddr, abi,
+		"allowance",
+		eu.HexToAddress(owner),
+		eu.HexToAddress(spender),
+	)
 	return result, err
 }

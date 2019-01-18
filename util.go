@@ -2,13 +2,47 @@ package ethutils
 
 import (
 	"fmt"
+	"io/ioutil"
 	"math"
 	"math/big"
+	"path"
+	"runtime"
 	"strconv"
+	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
+
+func getABIFromFile(filename string) (*abi.ABI, error) {
+	_, current, _, ok := runtime.Caller(0)
+	if !ok {
+		return nil, fmt.Errorf("couldn't get filepath of the caller")
+	}
+	content, err := ioutil.ReadFile(path.Join(path.Dir(current), filename))
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := abi.JSON(strings.NewReader(string(content)))
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func GetERC20ABI() (*abi.ABI, error) {
+	return getABIFromFile("erc20.abi")
+}
+
+func PackERC20Data(function string, params ...interface{}) ([]byte, error) {
+	abi, err := GetERC20ABI()
+	if err != nil {
+		return []byte{}, err
+	}
+	return abi.Pack(function, params...)
+}
 
 func FloatToInt(amount float64) int64 {
 	s := fmt.Sprintf("%.0f", amount)
