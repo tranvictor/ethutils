@@ -194,6 +194,17 @@ func (self *Account) SendETHToMultipleAddresses(amounts []float64, addresses []s
 	return txs, broadcasteds, errors
 }
 
+func (self *Account) CallERC20ContractWithPrice(
+	priceGwei float64, extraGas uint64, value float64, caddr string, function string,
+	params ...interface{}) (tx *types.Transaction, broadcasted bool, errors error) {
+	nonce, err := self.GetMinedNonce()
+	if err != nil {
+		return nil, false, fmt.Errorf("cannot get nonce: %s", err)
+	}
+	return self.CallERC20ContractWithNonceAndPrice(
+		nonce, priceGwei, extraGas, value, caddr, function, params...)
+}
+
 func (self *Account) CallContractWithPrice(
 	priceGwei float64, extraGas uint64, value float64, caddr string, function string,
 	params ...interface{}) (tx *types.Transaction, broadcasted bool, errors error) {
@@ -202,6 +213,22 @@ func (self *Account) CallContractWithPrice(
 		return nil, false, fmt.Errorf("cannot get nonce: %s", err)
 	}
 	return self.CallContractWithNonceAndPrice(
+		nonce, priceGwei, extraGas, value, caddr, function, params...)
+}
+
+func (self *Account) CallERC20Contract(
+	extraGas uint64,
+	value float64, caddr string, function string,
+	params ...interface{}) (tx *types.Transaction, broadcasted bool, errors error) {
+	nonce, err := self.GetMinedNonce()
+	if err != nil {
+		return nil, false, fmt.Errorf("cannot get nonce: %s", err)
+	}
+	priceGwei, err := self.reader.RecommendedGasPrice()
+	if err != nil {
+		return nil, false, fmt.Errorf("cannot get recommended gas price: %s", err)
+	}
+	return self.CallERC20ContractWithNonceAndPrice(
 		nonce, priceGwei, extraGas, value, caddr, function, params...)
 }
 
@@ -221,12 +248,46 @@ func (self *Account) CallContract(
 		nonce, priceGwei, extraGas, value, caddr, function, params...)
 }
 
+func (self *Account) PackERC20Data(function string, params ...interface{}) ([]byte, error) {
+	abi, err := eu.GetERC20ABI()
+	if err != nil {
+		return nil, err
+	}
+	return abi.Pack(function, params...)
+}
+
 func (self *Account) PackData(caddr string, function string, params ...interface{}) ([]byte, error) {
 	abi, err := self.reader.GetABI(caddr)
 	if err != nil {
 		return []byte{}, fmt.Errorf("Cannot get ABI from etherscan for %s", caddr)
 	}
 	return abi.Pack(function, params...)
+}
+
+func (self *Account) CallERC20ContractWithNonceAndPrice(
+	nonce uint64, priceGwei float64, extraGas uint64,
+	value float64, caddr string, function string,
+	params ...interface{}) (tx *types.Transaction, broadcasted bool, errors error) {
+	if value < 0 {
+		panic("value must be non-negative")
+	}
+	data, err := self.PackERC20Data(caddr, function, params...)
+	if err != nil {
+		return nil, false, fmt.Errorf("Cannot pack the params: %s", err)
+	}
+	gasLimit, err := self.reader.EstimateGas(
+		self.Address(), caddr, priceGwei, value, data)
+	if err != nil {
+		return nil, false, fmt.Errorf("Cannot estimate gas: %s", err)
+	}
+	gasLimit += extraGas
+	tx = ethutils.BuildTx(nonce, caddr, value, gasLimit, priceGwei, data)
+	signedTx, err := self.signer.SignTx(tx)
+	if err != nil {
+		return tx, false, fmt.Errorf("couldn't sign the tx: %s", err)
+	}
+	_, broadcasted, errors = self.broadcaster.BroadcastTx(signedTx)
+	return signedTx, broadcasted, errors
 }
 
 func (self *Account) CallContractWithNonceAndPrice(

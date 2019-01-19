@@ -200,6 +200,8 @@ type gsresponse struct {
 
 // return gwei
 func (self *EthReader) RecommendedGasPrice() (float64, error) {
+	self.gpmu.Lock()
+	defer self.gpmu.Unlock()
 	if self.latestGasPrice == 0 || time.Now().Unix()-self.gasPriceTimestamp > 30 {
 		resp, err := http.Get("https://ethgasstation.info/json/ethgasAPI.json")
 		if err != nil {
@@ -215,8 +217,6 @@ func (self *EthReader) RecommendedGasPrice() (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		self.gpmu.Lock()
-		defer self.gpmu.Unlock()
 		self.latestGasPrice = float64(prices.Fast) / 10.0
 		self.gasPriceTimestamp = time.Now().Unix()
 	}
