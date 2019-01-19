@@ -117,7 +117,7 @@ func (self *Account) SendAllERC20(tokenAddr string, to string) (tx *types.Transa
 	if err != nil {
 		return nil, false, fmt.Errorf("cannot get token balance: %s", err)
 	}
-	return self.CallContract(150000, 0, tokenAddr, "transfer", ethutils.HexToAddress(to), balance)
+	return self.CallERC20Contract(150000, 0, tokenAddr, "transfer", ethutils.HexToAddress(to), balance)
 }
 
 func (self *Account) SendERC20(tokenAddr string, tokenAmount float64, to string) (tx *types.Transaction, broadcasted bool, errors error) {
@@ -126,7 +126,7 @@ func (self *Account) SendERC20(tokenAddr string, tokenAmount float64, to string)
 		return nil, false, fmt.Errorf("cannot get token decimal: %s", err)
 	}
 	amount := ethutils.FloatToBigInt(tokenAmount, decimals)
-	return self.CallContract(150000, 0, tokenAddr, "transfer", ethutils.HexToAddress(to), amount)
+	return self.CallERC20Contract(150000, 0, tokenAddr, "transfer", ethutils.HexToAddress(to), amount)
 }
 
 func (self *Account) SendETH(ethAmount float64, to string) (tx *types.Transaction, broadcasted bool, errors error) {
