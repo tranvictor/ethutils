@@ -249,7 +249,7 @@ func (self *Account) CallContract(
 }
 
 func (self *Account) PackERC20Data(function string, params ...interface{}) ([]byte, error) {
-	abi, err := eu.GetERC20ABI()
+	abi, err := ethutils.GetERC20ABI()
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +271,7 @@ func (self *Account) CallERC20ContractWithNonceAndPrice(
 	if value < 0 {
 		panic("value must be non-negative")
 	}
-	data, err := self.PackERC20Data(caddr, function, params...)
+	data, err := self.PackERC20Data(function, params...)
 	if err != nil {
 		return nil, false, fmt.Errorf("Cannot pack the params: %s", err)
 	}
