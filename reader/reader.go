@@ -401,6 +401,23 @@ func (self *EthReader) ERC20Decimal(caddr string) (int64, error) {
 	return int64(result), err
 }
 
+func (self *EthReader) HeaderByNumber(number int64) (*types.Header, error) {
+	errors := map[string]error{}
+	numberBig := big.NewInt(number)
+	for name, client := range self.clients {
+		timeout, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+		ethcli := ethclient.NewClient(client)
+		result, err := ethcli.HeaderByNumber(timeout, numberBig)
+		defer cancel()
+		if err == nil {
+			return result, nil
+		} else {
+			errors[name] = err
+		}
+	}
+	return nil, makeError(errors)
+}
+
 func (self *EthReader) ERC20Allowance(caddr string, owner string, spender string) (*big.Int, error) {
 	abi, err := eu.GetERC20ABI()
 	if err != nil {
