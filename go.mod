@@ -21,8 +21,8 @@ require (
 	github.com/rjeczalik/notify v0.9.2 // indirect
 	github.com/rs/cors v1.6.0 // indirect
 	github.com/stretchr/testify v1.2.2 // indirect
-	github.com/tranvictor/trezoreum v0.0.0-20190226070109-0251fad2f225 // indirect
-	golang.org/x/crypto v0.0.0-20190225124518-7f87c0fbb88b
+	github.com/tranvictor/trezoreum v0.0.0-20190226070109-0251fad2f225
+	golang.org/x/crypto v0.0.0-20190225124518-7f87c0fbb88b // indirect
 	golang.org/x/net v0.0.0-20190225153610-fe579d43d832 // indirect
 	golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4 // indirect
 	golang.org/x/sys v0.0.0-20190225065934-cc5685c2db12 // indirect
