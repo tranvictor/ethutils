@@ -1,0 +1,60 @@
+package account
+
+import (
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/tranvictor/ethutils/broadcaster"
+	"github.com/tranvictor/ethutils/reader"
+)
+
+func NewRopstenAccountFromKeystore(file string, password string) (*Account, error) {
+	_, key, err := PrivateKeyFromKeystore(file, password)
+	if err != nil {
+		return nil, err
+	}
+	return &Account{
+		NewKeySigner(key),
+		reader.NewRopstenReader(),
+		broadcaster.NewRopstenBroadcaster(),
+		crypto.PubkeyToAddress(key.PublicKey),
+	}, nil
+}
+
+func NewRopstenAccountFromPrivateKey(hex string) (*Account, error) {
+	_, key, err := PrivateKeyFromHex(hex)
+	if err != nil {
+		return nil, err
+	}
+	return &Account{
+		NewKeySigner(key),
+		reader.NewRopstenReader(),
+		broadcaster.NewRopstenBroadcaster(),
+		crypto.PubkeyToAddress(key.PublicKey),
+	}, nil
+}
+
+func NewRopstenAccountFromPrivateKeyFile(file string) (*Account, error) {
+	_, key, err := PrivateKeyFromFile(file)
+	if err != nil {
+		return nil, err
+	}
+	return &Account{
+		NewKeySigner(key),
+		reader.NewRopstenReader(),
+		broadcaster.NewRopstenBroadcaster(),
+		crypto.PubkeyToAddress(key.PublicKey),
+	}, nil
+}
+
+func NewRopstenTrezorAccount(path string, address string) (*Account, error) {
+	signer, err := NewTrezorSigner(path, address)
+	if err != nil {
+		return nil, err
+	}
+	return &Account{
+		signer,
+		reader.NewRopstenReader(),
+		broadcaster.NewRopstenBroadcaster(),
+		common.HexToAddress(address),
+	}, nil
+}

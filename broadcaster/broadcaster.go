@@ -98,6 +98,27 @@ func NewRopstenBroadcaster() *Broadcaster {
 	}
 }
 
+func NewTomoBroadcaster() *Broadcaster {
+	once.Do(func() {
+		nodes := map[string]string{
+			"mainnet-tomo": "https://rpc.tomochain.com",
+		}
+		clients := map[string]*rpc.Client{}
+		for name, c := range nodes {
+			client, err := rpc.Dial(c)
+			if err != nil {
+				log.Printf("Couldn't connect to: %s - %v", c, err)
+			} else {
+				clients[name] = client
+			}
+		}
+		SharedBroadcaster = &Broadcaster{
+			clients: clients,
+		}
+	})
+	return SharedBroadcaster
+}
+
 func NewBroadcaster() *Broadcaster {
 	once.Do(func() {
 		nodes := map[string]string{

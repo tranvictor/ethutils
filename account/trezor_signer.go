@@ -16,6 +16,7 @@ type TrezorSigner struct {
 	devmu          sync.Mutex
 	deviceUnlocked bool
 	trezor         trezoreum.Bridge
+	chainID        int64
 }
 
 func (self *TrezorSigner) Unlock() error {
@@ -52,7 +53,7 @@ func (self *TrezorSigner) SignTx(tx *types.Transaction) (*types.Transaction, err
 			return tx, err
 		}
 	}
-	_, tx, err = self.trezor.Sign(self.path, tx, big.NewInt(1))
+	_, tx, err = self.trezor.Sign(self.path, tx, big.NewInt(self.chainID))
 	return tx, err
 }
 
@@ -71,6 +72,7 @@ func NewRopstenTrezorSigner(path string, address string) (*TrezorSigner, error) 
 		sync.Mutex{},
 		false,
 		trezor,
+		1,
 	}, nil
 }
 
@@ -89,5 +91,25 @@ func NewTrezorSigner(path string, address string) (*TrezorSigner, error) {
 		sync.Mutex{},
 		false,
 		trezor,
+		1,
+	}, nil
+}
+
+func NewTrezorTomoSigner(path string, address string) (*TrezorSigner, error) {
+	p, err := accounts.ParseDerivationPath(path)
+	if err != nil {
+		return nil, err
+	}
+	trezor, err := trezoreum.NewTrezoreum()
+	if err != nil {
+		return nil, err
+	}
+	return &TrezorSigner{
+		p,
+		sync.Mutex{},
+		sync.Mutex{},
+		false,
+		trezor,
+		88,
 	}, nil
 }

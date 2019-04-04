@@ -3,6 +3,7 @@ package reader
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -27,6 +28,7 @@ var SharedReader *EthReader
 var once sync.Once
 
 type EthReader struct {
+	chain   string
 	clients map[string]*rpc.Client
 
 	latestGasPrice    float64
@@ -48,11 +50,37 @@ func NewRopstenReader() *EthReader {
 		}
 	}
 	return &EthReader{
+		chain:             "ropsten",
 		clients:           clients,
 		latestGasPrice:    0.0,
 		gasPriceTimestamp: 0,
 		gpmu:              sync.Mutex{},
 	}
+}
+
+func NewTomoReader() *EthReader {
+	once.Do(func() {
+		nodes := map[string]string{
+			"mainnet-tomo": "https://rpc.tomochain.com",
+		}
+		clients := map[string]*rpc.Client{}
+		for name, c := range nodes {
+			client, err := rpc.Dial(c)
+			if err != nil {
+				log.Printf("Couldn't connect to: %s - %v", c, err)
+			} else {
+				clients[name] = client
+			}
+		}
+		SharedReader = &EthReader{
+			chain:             "tomo",
+			clients:           clients,
+			latestGasPrice:    0.0,
+			gasPriceTimestamp: 0,
+			gpmu:              sync.Mutex{},
+		}
+	})
+	return SharedReader
 }
 
 func NewEthReader() *EthReader {
@@ -73,6 +101,7 @@ func NewEthReader() *EthReader {
 			}
 		}
 		SharedReader = &EthReader{
+			chain:             "ethereum",
 			clients:           clients,
 			latestGasPrice:    0.0,
 			gasPriceTimestamp: 0,
@@ -89,7 +118,7 @@ type abiresponse struct {
 	Result  string `json:"result"`
 }
 
-func (self *EthReader) GetABI(address string) (*abi.ABI, error) {
+func (self *EthReader) GetEthereumABI(address string) (*abi.ABI, error) {
 	resp, err := http.Get(fmt.Sprintf("https://api.etherscan.io/api?module=contract&action=getabi&address=%s&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV", address))
 	if err != nil {
 		return nil, err
@@ -109,6 +138,51 @@ func (self *EthReader) GetABI(address string) (*abi.ABI, error) {
 		return nil, err
 	}
 	return &result, nil
+}
+
+// gas station response
+type tomoabiresponse struct {
+	Contract struct {
+		ABICode string `json:"abiCode"`
+	} `json:"contract"`
+}
+
+func (self *EthReader) GetTomoABI(address string) (*abi.ABI, error) {
+	resp, err := http.Get(fmt.Sprintf("https://scan.tomochain.com/api/accounts/%s", address))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	abiresp := tomoabiresponse{}
+	err = json.Unmarshal(body, &abiresp)
+	if err != nil {
+		return nil, err
+	}
+	result, err := abi.JSON(strings.NewReader(abiresp.Contract.ABICode))
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (self *EthReader) GetRopstenABI(address string) (*abi.ABI, error) {
+	return nil, errors.New("unhandled chain")
+}
+
+func (self *EthReader) GetABI(address string) (*abi.ABI, error) {
+	switch self.chain {
+	case "ethereum":
+		return self.GetEthereumABI(address)
+	case "ropsten":
+		return self.GetRopstenABI(address)
+	case "tomo":
+		return self.GetTomoABI(address)
+	}
+	return nil, errors.New("unhandled chain")
 }
 
 func (self *EthReader) EstimateGas(from, to string, priceGwei, value float64, data []byte) (uint64, error) {
@@ -198,8 +272,15 @@ type gsresponse struct {
 	SafeLow float64 `json:"safeLow"`
 }
 
-// return gwei
-func (self *EthReader) RecommendedGasPrice() (float64, error) {
+func (self *EthReader) RecommendedGasPriceRopsten() (float64, error) {
+	return 5, nil
+}
+
+func (self *EthReader) RecommendedGasPriceTomo() (float64, error) {
+	return 1, nil
+}
+
+func (self *EthReader) RecommendedGasPriceEthereum() (float64, error) {
 	self.gpmu.Lock()
 	defer self.gpmu.Unlock()
 	if self.latestGasPrice == 0 || time.Now().Unix()-self.gasPriceTimestamp > 30 {
@@ -221,6 +302,19 @@ func (self *EthReader) RecommendedGasPrice() (float64, error) {
 		self.gasPriceTimestamp = time.Now().Unix()
 	}
 	return self.latestGasPrice, nil
+}
+
+// return gwei
+func (self *EthReader) RecommendedGasPrice() (float64, error) {
+	switch self.chain {
+	case "ethereum":
+		return self.RecommendedGasPriceEthereum()
+	case "ropsten":
+		return self.RecommendedGasPriceRopsten()
+	case "tomo":
+		return self.RecommendedGasPriceTomo()
+	}
+	return 0, errors.New("unhandled chain")
 }
 
 func (self *EthReader) GetBalance(address string) (balance *big.Int, err error) {
