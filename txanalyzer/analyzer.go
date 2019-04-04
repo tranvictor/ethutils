@@ -263,3 +263,10 @@ func NewRopstenAnalyzer() *TxAnalyzer {
 		NewDefaultAddressDatabase(),
 	}
 }
+
+func NewTomoAnalyzer() *TxAnalyzer {
+	return &TxAnalyzer{
+		reader.NewTomoReader(),
+		NewDefaultAddressDatabase(),
+	}
+}
