@@ -3,9 +3,13 @@ package account
 import (
 	"fmt"
 	"math/big"
+	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/tranvictor/ethutils"
 	"github.com/tranvictor/ethutils/broadcaster"
 	"github.com/tranvictor/ethutils/reader"
@@ -287,6 +291,55 @@ func (self *Account) CallERC20ContractWithNonceAndPrice(
 	}
 	_, broadcasted, errors = self.broadcaster.BroadcastTx(signedTx)
 	return signedTx, broadcasted, errors
+}
+
+func (self *Account) DeployContract(
+	extraGas uint64, value float64, abiJson string, bytecode []byte,
+	params ...interface{}) (tx *types.Transaction, broadcasted bool, caddr common.Address, errors error) {
+	nonce, err := self.GetMinedNonce()
+	if err != nil {
+		return nil, false, common.Address{}, fmt.Errorf("cannot get nonce: %s", err)
+	}
+	priceGwei, err := self.reader.RecommendedGasPrice()
+	if err != nil {
+		return nil, false, common.Address{}, fmt.Errorf("cannot get recommended gas price: %s", err)
+	}
+	return self.DeployContractWithNonceAndPrice(
+		nonce, priceGwei, extraGas, value, abiJson, bytecode,
+		params...)
+}
+
+func (self *Account) DeployContractWithNonceAndPrice(
+	nonce uint64, priceGwei float64, extraGas uint64,
+	value float64, abiJson string, bytecode []byte,
+	params ...interface{}) (tx *types.Transaction, broadcasted bool, caddr common.Address, errors error) {
+	a, err := abi.JSON(strings.NewReader(abiJson))
+	if err != nil {
+		return nil, false, common.Address{}, err
+	}
+	input, err := a.Pack("", params...)
+	if err != nil {
+		return nil, false, common.Address{}, err
+	}
+	fmt.Printf("Constructor abi encoding: %s\n", hexutil.Encode(input))
+	data := append(bytecode, input...)
+
+	gasLimit, err := self.reader.EstimateGas(
+		self.Address(), "", priceGwei, value, data)
+	if err != nil {
+		return nil, false, common.Address{}, fmt.Errorf("Cannot estimate gas: %s", err)
+	}
+	gasLimit += extraGas
+
+	amount := ethutils.FloatToBigInt(value, 18)
+	tx = ethutils.BuildContractCreationTx(nonce, amount, gasLimit, priceGwei, data)
+	signedTx, err := self.signer.SignTx(tx)
+	if err != nil {
+		return tx, false, common.Address{}, fmt.Errorf("couldn't sign the tx: %s", err)
+	}
+	_, broadcasted, errors = self.broadcaster.BroadcastTx(signedTx)
+	caddr = crypto.CreateAddress(self.address, tx.Nonce())
+	return signedTx, broadcasted, caddr, errors
 }
 
 func (self *Account) CallContractWithNonceAndPrice(

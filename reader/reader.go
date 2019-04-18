@@ -187,7 +187,11 @@ func (self *EthReader) GetABI(address string) (*abi.ABI, error) {
 
 func (self *EthReader) EstimateGas(from, to string, priceGwei, value float64, data []byte) (uint64, error) {
 	fromAddr := common.HexToAddress(from)
-	toAddr := common.HexToAddress(to)
+	var toAddrPtr *common.Address
+	if to != "" {
+		toAddr := common.HexToAddress(to)
+		toAddrPtr = &toAddr
+	}
 	price := eu.FloatToBigInt(priceGwei, 9)
 	v := eu.FloatToBigInt(value, 18)
 	errors := map[string]error{}
@@ -196,7 +200,7 @@ func (self *EthReader) EstimateGas(from, to string, priceGwei, value float64, da
 		timeout, cancel := context.WithTimeout(context.Background(), TIMEOUT)
 		gas, err := ethcli.EstimateGas(timeout, ethereum.CallMsg{
 			From:     fromAddr,
-			To:       &toAddr,
+			To:       toAddrPtr,
 			Gas:      0,
 			GasPrice: price,
 			Value:    v,
