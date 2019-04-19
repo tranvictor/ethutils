@@ -3,6 +3,7 @@ package txanalyzer
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -51,7 +52,9 @@ func (self *TxAnalyzer) nonArrayParamAsString(t abi.Type, value interface{}) str
 	case abi.BytesTy:
 		return fmt.Sprintf("0x%s", common.Bytes2Hex(value.([]byte)))
 	case abi.FixedBytesTy:
-		return fmt.Sprintf("0x%s", common.Bytes2Hex(value.([]byte)))
+		word := []byte{}
+		reflect.Copy(reflect.ValueOf(word), reflect.ValueOf(value))
+		return fmt.Sprintf("0x%s", common.Bytes2Hex(word))
 	case abi.FunctionTy:
 		return fmt.Sprintf("0x%s", common.Bytes2Hex(value.([]byte)))
 	default:
