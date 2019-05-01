@@ -23,10 +23,10 @@ func (self *TxInfo) GasCost() *big.Int {
 
 type Transaction struct {
 	*types.Transaction
-	Extra txExtraInfo
+	Extra TxExtraInfo
 }
 
-type txExtraInfo struct {
+type TxExtraInfo struct {
 	BlockNumber *string         `json:"blockNumber,omitempty"`
 	BlockHash   *common.Hash    `json:"blockHash,omitempty"`
 	From        *common.Address `json:"from,omitempty"`
