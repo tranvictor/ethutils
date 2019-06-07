@@ -27,11 +27,11 @@ func BuildTx(nonce uint64, to string, ethAmount float64, gasLimit uint64, priceG
 }
 
 func BuildSendETHTx(nonce uint64, to string, ethAmount float64, priceGwei float64) (tx *types.Transaction) {
-	return BuildTx(nonce, to, ethAmount, 21000, priceGwei, []byte{})
+	return BuildTx(nonce, to, ethAmount, 30000, priceGwei, []byte{})
 }
 
 func BuildExactSendETHTx(nonce uint64, to string, ethAmount *big.Int, priceGwei float64) (tx *types.Transaction) {
-	return BuildExactTx(nonce, to, ethAmount, 21000, priceGwei, []byte{})
+	return BuildExactTx(nonce, to, ethAmount, 30000, priceGwei, []byte{})
 }
 
 func BuildContractCreationTx(nonce uint64, ethAmount *big.Int, gasLimit uint64, priceGwei float64, data []byte) (tx *types.Transaction) {

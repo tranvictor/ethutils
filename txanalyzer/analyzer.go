@@ -82,14 +82,9 @@ func findEventById(a *abi.ABI, topic []byte) (*abi.Event, error) {
 	return nil, fmt.Errorf("no event with id: %#x", topic)
 }
 
-func (self *TxAnalyzer) analyzeContractTx(txinfo ethutils.TxInfo, result *TxResult) {
+func (self *TxAnalyzer) analyzeContractTx(txinfo ethutils.TxInfo, abi *abi.ABI, result *TxResult) {
 	// fmt.Printf("------------------------------------------Contract call info-------------------------------------------------------------\n")
 	data := txinfo.Tx.Data()
-	abi, err := self.reader.GetABI(txinfo.Tx.To().Hex())
-	if err != nil {
-		result.Error = fmt.Sprintf("Cannot get abi of the contract: %s", err)
-		return
-	}
 	method, err := abi.MethodById(data)
 	if err != nil {
 		result.Error = fmt.Sprintf("Cannot get corresponding method from the ABI: %s", err)
@@ -216,37 +211,56 @@ func (self *TxAnalyzer) setGnosisMultisigInitData(inputs []abi.Argument, params 
 	}
 }
 
-// print all info on the tx
-func (self *TxAnalyzer) Analyze(tx string) *TxResult {
+func (self *TxAnalyzer) AnalyzeOffline(txinfo *ethutils.TxInfo, abi *abi.ABI, isContract bool) *TxResult {
 	result := NewTxResult()
-	txinfo, err := self.reader.TxInfoFromHash(tx)
-	if err != nil {
-		result.Error = fmt.Sprintf("getting tx info failed: %s", err)
-		return result
-	}
 	// fmt.Printf("==========================================Transaction info===============================================================\n")
 	// fmt.Printf("tx hash: %s\n", tx)
-	result.Hash = tx
+	result.Hash = txinfo.Tx.Hash().Hex()
 	// fmt.Printf("mining status: %s\n", txinfo.Status)
 	result.Status = txinfo.Status
 	if txinfo.Status == "done" || txinfo.Status == "reverted" {
-		self.setBasicTxInfo(txinfo, result)
-		code, err := self.reader.GetCode(txinfo.Tx.To().Hex())
-		if err != nil {
-			result.Error = fmt.Sprintf("checking tx type failed: %s", err)
-			return result
-		}
-		if len(code) == 0 {
+		self.setBasicTxInfo(*txinfo, result)
+		if !isContract {
 			// fmt.Printf("tx type: normal\n")
 			result.TxType = "normal"
 		} else {
 			// fmt.Printf("tx type: contract call\n")
 			result.TxType = "contract call"
-			self.analyzeContractTx(txinfo, result)
+			self.analyzeContractTx(*txinfo, abi, result)
 		}
 	}
 	// fmt.Printf("=========================================================================================================================\n")
 	return result
+}
+
+// print all info on the tx
+func (self *TxAnalyzer) Analyze(tx string) *TxResult {
+	txinfo, err := self.reader.TxInfoFromHash(tx)
+	if err != nil {
+		return &TxResult{
+			Error: fmt.Sprintf("getting tx info failed: %s", err),
+		}
+	}
+
+	code, err := self.reader.GetCode(txinfo.Tx.To().Hex())
+	if err != nil {
+		return &TxResult{
+			Error: fmt.Sprintf("checking tx type failed: %s", err),
+		}
+	}
+	isContract := len(code) > 0
+
+	if isContract {
+		abi, err := self.reader.GetABI(txinfo.Tx.To().Hex())
+		if err != nil {
+			return &TxResult{
+				Error: fmt.Sprintf("Cannot get abi of the contract: %s", err),
+			}
+		}
+		return self.AnalyzeOffline(&txinfo, abi, true)
+	} else {
+		return self.AnalyzeOffline(&txinfo, nil, false)
+	}
 }
 
 func (self *TxAnalyzer) SetAddressDatabase(db AddressDatabase) {

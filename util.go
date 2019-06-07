@@ -81,6 +81,22 @@ func BigToFloat(b *big.Int, decimal int64) float64 {
 	return result
 }
 
+func StringToBig(input string) *big.Int {
+	resultBig, ok := big.NewInt(0).SetString(input, 10)
+	if !ok {
+		return big.NewInt(0)
+	}
+	return resultBig
+}
+
+func StringToFloat(input string, decimal int64) float64 {
+	resultBig, ok := big.NewInt(0).SetString(input, 10)
+	if !ok {
+		return 0.0
+	}
+	return BigToFloat(resultBig, decimal)
+}
+
 // GweiToWei converts Gwei as a float to Wei as a big int
 func GweiToWei(n float64) *big.Int {
 	return FloatToBigInt(n, 9)

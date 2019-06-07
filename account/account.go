@@ -77,7 +77,7 @@ func (self *Account) SendAllETHWithPrice(priceGwei float64, to string) (tx *type
 	if err != nil {
 		return nil, false, fmt.Errorf("cannot get balance: %s", err)
 	}
-	amount := balance.Sub(balance, big.NewInt(0).Mul(big.NewInt(21000), ethutils.FloatToBigInt(priceGwei, 9)))
+	amount := balance.Sub(balance, big.NewInt(0).Mul(big.NewInt(30000), ethutils.FloatToBigInt(priceGwei, 9)))
 	if amount.Cmp(big.NewInt(0)) != 1 {
 		return nil, false, fmt.Errorf("not enough to do a tx with gas price: %f gwei", priceGwei)
 	}
@@ -97,7 +97,7 @@ func (self *Account) SendAllETH(to string) (tx *types.Transaction, broadcasted b
 	if err != nil {
 		return nil, false, fmt.Errorf("cannot get balance: %s", err)
 	}
-	amount := balance.Sub(balance, big.NewInt(0).Mul(big.NewInt(21000), ethutils.FloatToBigInt(priceGwei, 9)))
+	amount := balance.Sub(balance, big.NewInt(0).Mul(big.NewInt(30000), ethutils.FloatToBigInt(priceGwei, 9)))
 	if amount.Cmp(big.NewInt(0)) != 1 {
 		return nil, false, fmt.Errorf("not enough to do a tx with gas price: %f gwei", priceGwei)
 	}

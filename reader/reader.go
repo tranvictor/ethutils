@@ -118,22 +118,27 @@ type abiresponse struct {
 	Result  string `json:"result"`
 }
 
-func (self *EthReader) GetEthereumABI(address string) (*abi.ABI, error) {
+func (self *EthReader) GetEthereumABIString(address string) (string, error) {
 	resp, err := http.Get(fmt.Sprintf("https://api.etherscan.io/api?module=contract&action=getabi&address=%s&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV", address))
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
 	abiresp := abiresponse{}
 	err = json.Unmarshal(body, &abiresp)
 	if err != nil {
+		return "", err
+	}
+	return abiresp.Result, err
+}
+
+func (self *EthReader) GetEthereumABI(address string) (*abi.ABI, error) {
+	body, err := self.GetEthereumABIString(address)
+	if err != nil {
 		return nil, err
 	}
-	result, err := abi.JSON(strings.NewReader(abiresp.Result))
+	result, err := abi.JSON(strings.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -147,30 +152,51 @@ type tomoabiresponse struct {
 	} `json:"contract"`
 }
 
-func (self *EthReader) GetTomoABI(address string) (*abi.ABI, error) {
+func (self *EthReader) GetTomoABIString(address string) (string, error) {
 	resp, err := http.Get(fmt.Sprintf("https://scan.tomochain.com/api/accounts/%s", address))
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
 	abiresp := tomoabiresponse{}
 	err = json.Unmarshal(body, &abiresp)
 	if err != nil {
+		return "", err
+	}
+	return abiresp.Contract.ABICode, nil
+}
+
+func (self *EthReader) GetTomoABI(address string) (*abi.ABI, error) {
+	body, err := self.GetTomoABIString(address)
+	if err != nil {
 		return nil, err
 	}
-	result, err := abi.JSON(strings.NewReader(abiresp.Contract.ABICode))
+	result, err := abi.JSON(strings.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
 
+func (self *EthReader) GetRopstenABIString(address string) (string, error) {
+	return "", errors.New("unhandled chain")
+}
+
 func (self *EthReader) GetRopstenABI(address string) (*abi.ABI, error) {
 	return nil, errors.New("unhandled chain")
+}
+
+func (self *EthReader) GetABIString(address string) (string, error) {
+	switch self.chain {
+	case "ethereum":
+		return self.GetEthereumABIString(address)
+	case "ropsten":
+		return self.GetRopstenABIString(address)
+	case "tomo":
+		return self.GetTomoABIString(address)
+	}
+	return "", errors.New("unhandled chain")
 }
 
 func (self *EthReader) GetABI(address string) (*abi.ABI, error) {
@@ -236,17 +262,17 @@ func (self *EthReader) GetCode(address string) (code []byte, err error) {
 func (self *EthReader) TxInfoFromHash(tx string) (eu.TxInfo, error) {
 	txObj, isPending, err := self.TransactionByHash(tx)
 	if err != nil {
-		return eu.TxInfo{"error", nil, nil}, err
+		return eu.TxInfo{"error", nil, nil, nil}, err
 	}
 	if txObj == nil {
-		return eu.TxInfo{"notfound", nil, nil}, nil
+		return eu.TxInfo{"notfound", nil, nil, nil}, nil
 	} else {
 		if isPending {
-			return eu.TxInfo{"pending", txObj, nil}, nil
+			return eu.TxInfo{"pending", txObj, nil, nil}, nil
 		} else {
 			receipt, _ := self.TransactionReceipt(tx)
 			if receipt == nil {
-				return eu.TxInfo{"pending", txObj, nil}, nil
+				return eu.TxInfo{"pending", txObj, nil, nil}, nil
 			} else {
 				// only byzantium has status field at the moment
 				// mainnet, ropsten are byzantium, other chains such as
@@ -254,14 +280,14 @@ func (self *EthReader) TxInfoFromHash(tx string) (eu.TxInfo, error) {
 				// if PostState is a hash, it is pre-byzantium and all
 				// txs with PostState are considered done
 				if len(receipt.PostState) == len(common.Hash{}) {
-					return eu.TxInfo{"done", txObj, receipt}, nil
+					return eu.TxInfo{"done", txObj, []eu.InternalTx{}, receipt}, nil
 				} else {
 					if receipt.Status == 1 {
 						// successful tx
-						return eu.TxInfo{"done", txObj, receipt}, nil
+						return eu.TxInfo{"done", txObj, []eu.InternalTx{}, receipt}, nil
 					}
 					// failed tx
-					return eu.TxInfo{"reverted", txObj, receipt}, nil
+					return eu.TxInfo{"reverted", txObj, []eu.InternalTx{}, receipt}, nil
 				}
 			}
 		}

@@ -9,10 +9,17 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+type InternalTx struct {
+	From  string `json:"from"`
+	To    string `json:"to"`
+	Value string `json:"value"`
+}
+
 type TxInfo struct {
-	Status  string
-	Tx      *Transaction
-	Receipt *types.Receipt
+	Status      string
+	Tx          *Transaction
+	InternalTxs []InternalTx
+	Receipt     *types.Receipt
 }
 
 func (self *TxInfo) GasCost() *big.Int {
