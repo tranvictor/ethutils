@@ -3,6 +3,7 @@ package account
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/tranvictor/ethutils/account/trezor"
 	"github.com/tranvictor/ethutils/broadcaster"
 	"github.com/tranvictor/ethutils/reader"
 )
@@ -47,7 +48,7 @@ func NewRopstenAccountFromPrivateKeyFile(file string) (*Account, error) {
 }
 
 func NewRopstenTrezorAccount(path string, address string) (*Account, error) {
-	signer, err := NewTrezorSigner(path, address)
+	signer, err := trezor.NewTrezorSigner(path, address)
 	if err != nil {
 		return nil, err
 	}

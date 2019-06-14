@@ -3,6 +3,8 @@ package account
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/tranvictor/ethutils/account/ledgereum"
+	"github.com/tranvictor/ethutils/account/trezor"
 	"github.com/tranvictor/ethutils/broadcaster"
 	"github.com/tranvictor/ethutils/reader"
 )
@@ -46,8 +48,22 @@ func NewAccountFromPrivateKeyFile(file string) (*Account, error) {
 	}, nil
 }
 
+func NewLedgerAccount(path string, address string) (*Account, error) {
+	signer, err := ledgereum.NewLedgerSigner(path, address)
+	if err != nil {
+		return nil, err
+	}
+	return &Account{
+		signer,
+		// nil,
+		reader.NewEthReader(),
+		broadcaster.NewBroadcaster(),
+		common.HexToAddress(address),
+	}, nil
+}
+
 func NewTrezorAccount(path string, address string) (*Account, error) {
-	signer, err := NewTrezorSigner(path, address)
+	signer, err := trezor.NewTrezorSigner(path, address)
 	if err != nil {
 		return nil, err
 	}
