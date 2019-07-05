@@ -53,6 +53,9 @@ func (self *TxAnalyzer) nonArrayParamAsString(t abi.Type, value interface{}) str
 		return fmt.Sprintf("0x%s", common.Bytes2Hex(value.([]byte)))
 	case abi.FixedBytesTy:
 		word := []byte{}
+		for i := 0; i < int(reflect.TypeOf(value).Size()); i++ {
+			word = append(word, byte(0))
+		}
 		reflect.Copy(reflect.ValueOf(word), reflect.ValueOf(value))
 		return fmt.Sprintf("0x%s", common.Bytes2Hex(word))
 	case abi.FunctionTy:
