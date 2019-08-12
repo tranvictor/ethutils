@@ -85,33 +85,75 @@ func findEventById(a *abi.ABI, topic []byte) (*abi.Event, error) {
 	return nil, fmt.Errorf("no event with id: %#x", topic)
 }
 
+func (self *TxAnalyzer) AnalyzeMethodCall(abi *abi.ABI, data []byte) (method string, params []ParamResult, err error) {
+	m, err := abi.MethodById(data)
+	if err != nil {
+		return "", []ParamResult{}, err
+	}
+	method = m.Name
+	ps, err := m.Inputs.UnpackValues(data[4:])
+	if err != nil {
+		return method, []ParamResult{}, err
+	}
+	params = []ParamResult{}
+	for i, input := range m.Inputs {
+		params = append(params, ParamResult{
+			Name:  input.Name,
+			Type:  input.Type.String(),
+			Value: self.paramAsString(input.Type, ps[i]),
+		})
+	}
+	return method, params, nil
+}
+
 func (self *TxAnalyzer) analyzeContractTx(txinfo ethutils.TxInfo, abi *abi.ABI, result *TxResult) {
+	result.Contract.Address = txinfo.Tx.To().Hex()
+	result.Contract.Name = self.addrdb.GetName(result.Contract.Address)
 	// fmt.Printf("------------------------------------------Contract call info-------------------------------------------------------------\n")
 	data := txinfo.Tx.Data()
-	method, err := abi.MethodById(data)
+	methodName, params, err := self.AnalyzeMethodCall(abi, data)
+	if err != nil {
+		result.Error = fmt.Sprintf("Cannot analyze the method call: %s", err)
+		return
+	}
+
+	result.Method = methodName
+	result.Params = append(result.Params, params...)
+
+	m, err := abi.MethodById(data)
 	if err != nil {
 		result.Error = fmt.Sprintf("Cannot get corresponding method from the ABI: %s", err)
 		return
 	}
-	// fmt.Printf("Contract: %s (%s)\n", txinfo.Tx.To().Hex(), "TODO")
-	result.Contract.Address = txinfo.Tx.To().Hex()
-	result.Contract.Name = self.addrdb.GetName(result.Contract.Address)
-	// fmt.Printf("Method: %s\n", method.Name)
-	result.Method = method.Name
-	params, err := method.Inputs.UnpackValues(data[4:])
+
+	ps, err := m.Inputs.UnpackValues(data[4:])
 	if err != nil {
 		result.Error = fmt.Sprintf("Cannot parse params: %s", err)
 		return
 	}
-	for i, input := range method.Inputs {
-		result.Params = append(result.Params, ParamResult{
-			Name:  input.Name,
-			Type:  input.Type.String(),
-			Value: self.paramAsString(input.Type, params[i]),
-		})
-		// fmt.Printf("    %s (%s): ", input.Name, input.Type)
-		// paramAsString(input.Type, params[i])
-	}
+
+	// method, err := abi.MethodById(data)
+	// if err != nil {
+	// 	result.Error = fmt.Sprintf("Cannot get corresponding method from the ABI: %s", err)
+	// 	return
+	// }
+	// // fmt.Printf("Contract: %s (%s)\n", txinfo.Tx.To().Hex(), "TODO")
+	// // fmt.Printf("Method: %s\n", method.Name)
+	// result.Method = method.Name
+	// params, err := method.Inputs.UnpackValues(data[4:])
+	// if err != nil {
+	// 	result.Error = fmt.Sprintf("Cannot parse params: %s", err)
+	// 	return
+	// }
+	// for i, input := range method.Inputs {
+	// 	result.Params = append(result.Params, ParamResult{
+	// 		Name:  input.Name,
+	// 		Type:  input.Type.String(),
+	// 		Value: paramAsString(input.Type, params[i]),
+	// 	})
+	// 	// fmt.Printf("    %s (%s): ", input.Name, input.Type)
+	// 	// paramAsString(input.Type, params[i])
+	// }
 	logs := txinfo.Receipt.Logs
 	// fmt.Printf("Event logs:\n")
 	for _, l := range logs {
@@ -152,14 +194,14 @@ func (self *TxAnalyzer) analyzeContractTx(txinfo ethutils.TxInfo, abi *abi.ABI, 
 			result.Error += fmt.Sprintf("Cannot find event of topic %s in the abi.", l.Topics[0].Hex())
 		}
 	}
-	if isGnosisMultisig(method, params) {
+	if isGnosisMultisig(m, ps) {
 		// fmt.Printf("    ==> Gnosis Multisig init data:\n")
 		result.GnosisInit = &GnosisResult{
 			Contract: AddressResult{},
 			Method:   "",
 			Params:   []ParamResult{},
 		}
-		self.setGnosisMultisigInitData(method.Inputs, params, result)
+		self.setGnosisMultisigInitData(m.Inputs, ps, result)
 	}
 }
 
