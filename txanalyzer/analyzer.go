@@ -89,7 +89,7 @@ func (self *TxAnalyzer) paramAsString(t abi.Type, value interface{}) string {
 
 func findEventById(a *abi.ABI, topic []byte) (*abi.Event, error) {
 	for _, event := range a.Events {
-		if bytes.Equal(event.ID().Bytes(), topic) {
+		if bytes.Equal(event.Id().Bytes(), topic) {
 			return &event, nil
 		}
 	}
