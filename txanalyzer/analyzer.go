@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/tranvictor/ethutils"
 	"github.com/tranvictor/ethutils/reader"
 )
@@ -68,9 +69,19 @@ func (self *TxAnalyzer) nonArrayParamAsString(t abi.Type, value interface{}) str
 func (self *TxAnalyzer) paramAsString(t abi.Type, value interface{}) string {
 	switch t.T {
 	case abi.SliceTy:
-		return fmt.Sprintf("%v (slice)", value)
+		realVal := reflect.ValueOf(value)
+		result := ""
+		for i := 0; i < realVal.Len(); i++ {
+			result += fmt.Sprintf("\n%d. %v", i, self.paramAsString(*t.Elem, realVal.Index(i).Interface()))
+		}
+		return result
 	case abi.ArrayTy:
-		return fmt.Sprintf("%v (array)", value)
+		realVal := reflect.ValueOf(value)
+		result := ""
+		for i := 0; i < realVal.Len(); i++ {
+			result += fmt.Sprintf("\n%d. %v", i, self.paramAsString(*t.Elem, realVal.Index(i).Interface()))
+		}
+		return result
 	default:
 		return self.nonArrayParamAsString(t, value)
 	}
@@ -106,6 +117,41 @@ func (self *TxAnalyzer) AnalyzeMethodCall(abi *abi.ABI, data []byte) (method str
 	return method, params, nil
 }
 
+func (self *TxAnalyzer) AnalyzeLog(abi *abi.ABI, l *types.Log) (LogResult, error) {
+	logResult := LogResult{
+		Name:   "",
+		Topics: []TopicResult{},
+		Data:   []ParamResult{},
+	}
+
+	event, err := findEventById(abi, l.Topics[0].Bytes())
+	if err != nil {
+		return logResult, err
+	}
+	logResult.Name = event.Name
+
+	iArgs, niArgs := SplitEventArguments(event.Inputs)
+	for j, topic := range l.Topics[1:] {
+		logResult.Topics = append(logResult.Topics, TopicResult{
+			Name:  iArgs[j].Name,
+			Value: topic.Hex(),
+		})
+	}
+
+	params, err := niArgs.UnpackValues(l.Data)
+	if err != nil {
+		return logResult, err
+	}
+	for i, input := range niArgs {
+		logResult.Data = append(logResult.Data, ParamResult{
+			Name:  input.Name,
+			Type:  input.Type.String(),
+			Value: self.paramAsString(input.Type, params[i]),
+		})
+	}
+	return logResult, nil
+}
+
 func (self *TxAnalyzer) analyzeContractTx(txinfo ethutils.TxInfo, abi *abi.ABI, result *TxResult) {
 	result.Contract.Address = txinfo.Tx.To().Hex()
 	result.Contract.Name = self.addrdb.GetName(result.Contract.Address)
@@ -132,67 +178,50 @@ func (self *TxAnalyzer) analyzeContractTx(txinfo ethutils.TxInfo, abi *abi.ABI, 
 		return
 	}
 
-	// method, err := abi.MethodById(data)
-	// if err != nil {
-	// 	result.Error = fmt.Sprintf("Cannot get corresponding method from the ABI: %s", err)
-	// 	return
-	// }
-	// // fmt.Printf("Contract: %s (%s)\n", txinfo.Tx.To().Hex(), "TODO")
-	// // fmt.Printf("Method: %s\n", method.Name)
-	// result.Method = method.Name
-	// params, err := method.Inputs.UnpackValues(data[4:])
-	// if err != nil {
-	// 	result.Error = fmt.Sprintf("Cannot parse params: %s", err)
-	// 	return
-	// }
-	// for i, input := range method.Inputs {
-	// 	result.Params = append(result.Params, ParamResult{
-	// 		Name:  input.Name,
-	// 		Type:  input.Type.String(),
-	// 		Value: paramAsString(input.Type, params[i]),
-	// 	})
-	// 	// fmt.Printf("    %s (%s): ", input.Name, input.Type)
-	// 	// paramAsString(input.Type, params[i])
-	// }
 	logs := txinfo.Receipt.Logs
 	// fmt.Printf("Event logs:\n")
 	for _, l := range logs {
-		event, err := findEventById(abi, l.Topics[0].Bytes())
-		if err == nil {
-			// fmt.Printf("Log %d:\n", i)
-			// fmt.Printf("    Event name: %s\n", event.Name)
-			logResult := LogResult{
-				Name:   event.Name,
-				Topics: []TopicResult{},
-				Data:   []ParamResult{},
-			}
-			iArgs, niArgs := SplitEventArguments(event.Inputs)
-			for j, topic := range l.Topics[1:] {
-				// fmt.Printf("    Topic %d - %s: %s\n", j+1, iArgs[j].Name, topic.Hex())
-				logResult.Topics = append(logResult.Topics, TopicResult{
-					Name:  iArgs[j].Name,
-					Value: topic.Hex(),
-				})
-			}
-			// fmt.Printf("    Data: %s\n", common.Bytes2Hex(l.Data))
-			// fmt.Printf("    Inputs: %+v\n", event.Inputs)
-			params, err := niArgs.UnpackValues(l.Data)
-			if err != nil {
-				result.Error += fmt.Sprintf("Cannot parse params: %s", err)
-			} else {
-				for i, input := range niArgs {
-					// fmt.Printf("    %s (%s): ", input.Name, input.Type)
-					logResult.Data = append(logResult.Data, ParamResult{
-						Name:  input.Name,
-						Type:  input.Type.String(),
-						Value: self.paramAsString(input.Type, params[i]),
-					})
-				}
-			}
-			result.Logs = append(result.Logs, logResult)
-		} else {
-			result.Error += fmt.Sprintf("Cannot find event of topic %s in the abi.", l.Topics[0].Hex())
+		logResult, err := self.AnalyzeLog(abi, l)
+		if err != nil {
+			result.Error += fmt.Sprintf("%s", err)
 		}
+		result.Logs = append(result.Logs, logResult)
+		// event, err := findEventById(abi, l.Topics[0].Bytes())
+		// if err == nil {
+		// 	// fmt.Printf("Log %d:\n", i)
+		// 	// fmt.Printf("    Event name: %s\n", event.Name)
+		// 	logResult := LogResult{
+		// 		Name:   event.Name,
+		// 		Topics: []TopicResult{},
+		// 		Data:   []ParamResult{},
+		// 	}
+		// 	iArgs, niArgs := SplitEventArguments(event.Inputs)
+		// 	for j, topic := range l.Topics[1:] {
+		// 		// fmt.Printf("    Topic %d - %s: %s\n", j+1, iArgs[j].Name, topic.Hex())
+		// 		logResult.Topics = append(logResult.Topics, TopicResult{
+		// 			Name:  iArgs[j].Name,
+		// 			Value: topic.Hex(),
+		// 		})
+		// 	}
+		// 	// fmt.Printf("    Data: %s\n", common.Bytes2Hex(l.Data))
+		// 	// fmt.Printf("    Inputs: %+v\n", event.Inputs)
+		// 	params, err := niArgs.UnpackValues(l.Data)
+		// 	if err != nil {
+		// 		result.Error += fmt.Sprintf("Cannot parse params: %s", err)
+		// 	} else {
+		// 		for i, input := range niArgs {
+		// 			// fmt.Printf("    %s (%s): ", input.Name, input.Type)
+		// 			logResult.Data = append(logResult.Data, ParamResult{
+		// 				Name:  input.Name,
+		// 				Type:  input.Type.String(),
+		// 				Value: self.paramAsString(input.Type, params[i]),
+		// 			})
+		// 		}
+		// 	}
+		// 	result.Logs = append(result.Logs, logResult)
+		// } else {
+		// 	result.Error += fmt.Sprintf("Cannot find event of topic %s in the abi.", l.Topics[0].Hex())
+		// }
 	}
 	if isGnosisMultisig(m, ps) {
 		// fmt.Printf("    ==> Gnosis Multisig init data:\n")

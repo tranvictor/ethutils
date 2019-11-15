@@ -461,12 +461,17 @@ func (self *EthReader) Call(result interface{}, method string, args ...interface
 	return makeError(errors)
 }
 
-func (self *EthReader) readContractToBytes(caddr string, abi *abi.ABI, method string, args ...interface{}) ([]byte, error) {
+func (self *EthReader) readContractToBytes(atBlock int64, caddr string, abi *abi.ABI, method string, args ...interface{}) ([]byte, error) {
 	errors := map[string]error{}
 	contract := eu.HexToAddress(caddr)
 	data, err := abi.Pack(method, args...)
 	if err != nil {
 		return []byte{}, err
+	}
+
+	var blockBig *big.Int
+	if atBlock >= 0 {
+		blockBig = big.NewInt(atBlock)
 	}
 	for name, client := range self.clients {
 		timeout, cancel := context.WithTimeout(context.Background(), 4*time.Second)
@@ -478,7 +483,7 @@ func (self *EthReader) readContractToBytes(caddr string, abi *abi.ABI, method st
 			GasPrice: nil,
 			Value:    nil,
 			Data:     data,
-		}, nil)
+		}, blockBig)
 		defer cancel()
 		if err == nil {
 			return result, nil
@@ -489,12 +494,28 @@ func (self *EthReader) readContractToBytes(caddr string, abi *abi.ABI, method st
 	return []byte{}, makeError(errors)
 }
 
-func (self *EthReader) ReadContractWithABI(result interface{}, caddr string, abi *abi.ABI, method string, args ...interface{}) error {
-	responseBytes, err := self.readContractToBytes(caddr, abi, method, args...)
+func (self *EthReader) ReadHistoryContractWithABI(atBlock uint64, result interface{}, caddr string, abi *abi.ABI, method string, args ...interface{}) error {
+	responseBytes, err := self.readContractToBytes(int64(atBlock), caddr, abi, method, args...)
 	if err != nil {
 		return err
 	}
 	return abi.Unpack(result, method, responseBytes)
+}
+
+func (self *EthReader) ReadContractWithABI(result interface{}, caddr string, abi *abi.ABI, method string, args ...interface{}) error {
+	responseBytes, err := self.readContractToBytes(-1, caddr, abi, method, args...)
+	if err != nil {
+		return err
+	}
+	return abi.Unpack(result, method, responseBytes)
+}
+
+func (self *EthReader) ReadHistoryContract(atBlock uint64, result interface{}, caddr string, method string, args ...interface{}) error {
+	abi, err := self.GetABI(caddr)
+	if err != nil {
+		return err
+	}
+	return self.ReadHistoryContractWithABI(atBlock, result, caddr, abi, method, args...)
 }
 
 func (self *EthReader) ReadContract(result interface{}, caddr string, method string, args ...interface{}) error {
@@ -505,6 +526,16 @@ func (self *EthReader) ReadContract(result interface{}, caddr string, method str
 	return self.ReadContractWithABI(result, caddr, abi, method, args...)
 }
 
+func (self *EthReader) HistoryERC20Balance(atBlock uint64, caddr string, user string) (*big.Int, error) {
+	abi, err := eu.GetERC20ABI()
+	if err != nil {
+		return nil, err
+	}
+	result := big.NewInt(0)
+	err = self.ReadHistoryContractWithABI(atBlock, &result, caddr, abi, "balanceOf", eu.HexToAddress(user))
+	return result, err
+}
+
 func (self *EthReader) ERC20Balance(caddr string, user string) (*big.Int, error) {
 	abi, err := eu.GetERC20ABI()
 	if err != nil {
@@ -513,6 +544,16 @@ func (self *EthReader) ERC20Balance(caddr string, user string) (*big.Int, error)
 	result := big.NewInt(0)
 	err = self.ReadContractWithABI(&result, caddr, abi, "balanceOf", eu.HexToAddress(user))
 	return result, err
+}
+
+func (self *EthReader) HistoryERC20Decimal(atBlock uint64, caddr string) (int64, error) {
+	abi, err := eu.GetERC20ABI()
+	if err != nil {
+		return 0, err
+	}
+	var result uint8
+	err = self.ReadHistoryContractWithABI(atBlock, &result, caddr, abi, "decimals")
+	return int64(result), err
 }
 
 func (self *EthReader) ERC20Decimal(caddr string) (int64, error) {
@@ -542,6 +583,22 @@ func (self *EthReader) HeaderByNumber(number int64) (*types.Header, error) {
 	return nil, makeError(errors)
 }
 
+func (self *EthReader) HistoryERC20Allowance(atBlock uint64, caddr string, owner string, spender string) (*big.Int, error) {
+	abi, err := eu.GetERC20ABI()
+	if err != nil {
+		return nil, err
+	}
+	result := big.NewInt(0)
+	err = self.ReadHistoryContractWithABI(
+		atBlock,
+		&result, caddr, abi,
+		"allowance",
+		eu.HexToAddress(owner),
+		eu.HexToAddress(spender),
+	)
+	return result, err
+}
+
 func (self *EthReader) ERC20Allowance(caddr string, owner string, spender string) (*big.Int, error) {
 	abi, err := eu.GetERC20ABI()
 	if err != nil {
@@ -555,4 +612,43 @@ func (self *EthReader) ERC20Allowance(caddr string, owner string, spender string
 		eu.HexToAddress(spender),
 	)
 	return result, err
+}
+
+func (self *EthReader) AddressFromContract(contract string, method string) (*common.Address, error) {
+	result := common.Address{}
+	err := self.ReadContract(&result, contract, method)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// if toBlock < 0, it will query to the latest block
+func (self *EthReader) GetLogs(fromBlock, toBlock int, addresses []string, topic string) ([]types.Log, error) {
+	q := &ethereum.FilterQuery{}
+	q.BlockHash = nil
+	q.FromBlock = big.NewInt(int64(fromBlock))
+	if toBlock < 0 {
+		q.ToBlock = nil
+	} else {
+		q.ToBlock = big.NewInt(int64(toBlock))
+	}
+	q.Addresses = eu.HexToAddresses(addresses)
+	q.Topics = [][]common.Hash{
+		[]common.Hash{eu.HexToHash(topic)},
+	}
+
+	errors := map[string]error{}
+	for name, client := range self.clients {
+		timeout, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+		ethcli := ethclient.NewClient(client)
+		result, err := ethcli.FilterLogs(timeout, *q)
+		defer cancel()
+		if err == nil {
+			return result, nil
+		} else {
+			errors[name] = err
+		}
+	}
+	return nil, makeError(errors)
 }

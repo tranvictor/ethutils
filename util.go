@@ -107,6 +107,10 @@ func EthToWei(n float64) *big.Int {
 	return FloatToBigInt(n, 18)
 }
 
+func HexToHash(hex string) common.Hash {
+	return common.HexToHash(hex)
+}
+
 func HexToBig(hex string) *big.Int {
 	result, err := hexutil.DecodeBig(hex)
 	if err != nil {
