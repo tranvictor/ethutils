@@ -82,6 +82,10 @@ github.com/syndtr/goleveldb v1.0.0 h1:fBdIW9lB4Iz0n9khmH8w27SJ3QEJ7+IgjPEwGSZiFd
 github.com/syndtr/goleveldb v1.0.0/go.mod h1:ZVVdQEZoIme9iO1Ch2Jdy24qqXrMMOU6lpPAyBWyWuQ=
 github.com/tranvictor/trezoreum v0.0.0-20190323062241-62f3fd382e93/go.mod h1:Nk84tlsSXc1ach4bnQFGlpM0YoU/gc1qyMJiPkq4IDg=
 github.com/tranvictor/usb v0.0.0-20190615150339-2b84c61e412b/go.mod h1:avOskwPr11/v/D01vrsToADRzvE08l4fsqppspOu9Io=
+github.com/tranvictor/usb v0.0.0 h1:FaL6XrjqakKk/Z75EQCeYCUCiBOsj6H0dGSFvKQDecY=
+github.com/tranvictor/usb v0.0.0/go.mod h1:avOskwPr11/v/D01vrsToADRzvE08l4fsqppspOu9Io=
+github.com/tranvictor/usb v0.0.1-0.20191116100612-889f3c702387 h1:YDjD+0QbRa8cz1Qj7rp/NoMCts1vQVqB9o45ejURhEM=
+github.com/tranvictor/usb v0.0.1-0.20191116100612-889f3c702387/go.mod h1:avOskwPr11/v/D01vrsToADRzvE08l4fsqppspOu9Io=
 github.com/trezor/trezord v1.2.1/go.mod h1:DTzmxqbdyC2g8UVtav8OB4Pby3zNVOuaPTJkTGe8lxI=
 github.com/trezor/trezord-go v2.0.26+incompatible/go.mod h1:zoHzGaMdFU8PlDEEZsLolIkq7GeyjqB+b3rrnJLHOk4=
 golang.org/x/crypto v0.0.0-20170930174604-9419663f5a44/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=

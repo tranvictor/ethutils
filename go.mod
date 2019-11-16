@@ -28,7 +28,7 @@ require (
 	github.com/steakknife/hamming v0.0.0-20180906055917-c99c65617cd3 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/tranvictor/trezoreum v0.0.0-20190323062241-62f3fd382e93
-	github.com/tranvictor/usb v0.0.0-20190615150339-2b84c61e412b
+	github.com/tranvictor/usb v0.0.1-0.20191116100612-889f3c702387
 	golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8
 	golang.org/x/net v0.0.0-20190613194153-d28f0bde5980 // indirect
 	golang.org/x/sys v0.0.0-20190614160838-b47fdc937951 // indirect
@@ -40,5 +40,3 @@ require (
 	gopkg.in/urfave/cli.v1 v1.20.0 // indirect
 	gopkg.in/yaml.v2 v2.2.2 // indirect
 )
-
-replace gopkg.in/urfave/cli.v1 v1.20.0 => github.com/urfave/cli.v1 v1.20.0
