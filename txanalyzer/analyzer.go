@@ -66,20 +66,20 @@ func (self *TxAnalyzer) nonArrayParamAsString(t abi.Type, value interface{}) str
 	}
 }
 
-func (self *TxAnalyzer) paramAsString(t abi.Type, value interface{}) string {
+func (self *TxAnalyzer) ParamAsString(t abi.Type, value interface{}) string {
 	switch t.T {
 	case abi.SliceTy:
 		realVal := reflect.ValueOf(value)
 		result := ""
 		for i := 0; i < realVal.Len(); i++ {
-			result += fmt.Sprintf("\n%d. %v", i, self.paramAsString(*t.Elem, realVal.Index(i).Interface()))
+			result += fmt.Sprintf("\n%d. %v", i, self.ParamAsString(*t.Elem, realVal.Index(i).Interface()))
 		}
 		return result
 	case abi.ArrayTy:
 		realVal := reflect.ValueOf(value)
 		result := ""
 		for i := 0; i < realVal.Len(); i++ {
-			result += fmt.Sprintf("\n%d. %v", i, self.paramAsString(*t.Elem, realVal.Index(i).Interface()))
+			result += fmt.Sprintf("\n%d. %v", i, self.ParamAsString(*t.Elem, realVal.Index(i).Interface()))
 		}
 		return result
 	default:
@@ -111,7 +111,7 @@ func (self *TxAnalyzer) AnalyzeMethodCall(abi *abi.ABI, data []byte) (method str
 		params = append(params, ParamResult{
 			Name:  input.Name,
 			Type:  input.Type.String(),
-			Value: self.paramAsString(input.Type, ps[i]),
+			Value: self.ParamAsString(input.Type, ps[i]),
 		})
 	}
 	return method, params, nil
@@ -146,7 +146,7 @@ func (self *TxAnalyzer) AnalyzeLog(abi *abi.ABI, l *types.Log) (LogResult, error
 		logResult.Data = append(logResult.Data, ParamResult{
 			Name:  input.Name,
 			Type:  input.Type.String(),
-			Value: self.paramAsString(input.Type, params[i]),
+			Value: self.ParamAsString(input.Type, params[i]),
 		})
 	}
 	return logResult, nil
@@ -214,7 +214,7 @@ func (self *TxAnalyzer) analyzeContractTx(txinfo ethutils.TxInfo, abi *abi.ABI, 
 		// 			logResult.Data = append(logResult.Data, ParamResult{
 		// 				Name:  input.Name,
 		// 				Type:  input.Type.String(),
-		// 				Value: self.paramAsString(input.Type, params[i]),
+		// 				Value: self.ParamAsString(input.Type, params[i]),
 		// 			})
 		// 		}
 		// 	}
@@ -279,7 +279,7 @@ func (self *TxAnalyzer) setGnosisMultisigInitData(inputs []abi.Argument, params 
 		result.GnosisInit.Params = append(result.GnosisInit.Params, ParamResult{
 			Name:  input.Name,
 			Type:  input.Type.String(),
-			Value: self.paramAsString(input.Type, ps[i]),
+			Value: self.ParamAsString(input.Type, ps[i]),
 		})
 		// fmt.Printf("        %s (%s): ", input.Name, input.Type)
 	}
