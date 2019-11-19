@@ -368,6 +368,6 @@ func (self *Account) SignTxAndBroadcast(tx *types.Transaction) (*types.Transacti
 	if err != nil {
 		return tx, false, fmt.Errorf("couldn't sign the tx: %s", err)
 	}
-	_, broadcasted, errors = self.broadcaster.BroadcastTx(signedTx)
-	return signedTx, broadcasted, errors
+	_, broadcasted, err := self.broadcaster.BroadcastTx(signedTx)
+	return signedTx, broadcasted, err
 }
