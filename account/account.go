@@ -360,6 +360,10 @@ func (self *Account) CallContractWithNonceAndPrice(
 	}
 	gasLimit += extraGas
 	tx = ethutils.BuildTx(nonce, caddr, value, gasLimit, priceGwei, data)
+	return self.SignTxAndBroadcast(tx)
+}
+
+func (self *Account) SignTxAndBroadcast(tx *types.Transaction) (tx *types.Transaction, broadcasted bool, errors error) {
 	signedTx, err := self.signer.SignTx(tx)
 	if err != nil {
 		return tx, false, fmt.Errorf("couldn't sign the tx: %s", err)
