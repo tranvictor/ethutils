@@ -363,7 +363,7 @@ func (self *Account) CallContractWithNonceAndPrice(
 	return self.SignTxAndBroadcast(tx)
 }
 
-func (self *Account) SignTxAndBroadcast(tx *types.Transaction) (tx *types.Transaction, broadcasted bool, errors error) {
+func (self *Account) SignTxAndBroadcast(tx *types.Transaction) (*types.Transaction, bool, error) {
 	signedTx, err := self.signer.SignTx(tx)
 	if err != nil {
 		return tx, false, fmt.Errorf("couldn't sign the tx: %s", err)
