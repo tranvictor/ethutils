@@ -31,6 +31,7 @@ type GnosisResult struct {
 	Contract AddressResult
 	Method   string
 	Params   []ParamResult
+	Error    string
 }
 
 type TxResult struct {

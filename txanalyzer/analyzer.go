@@ -96,15 +96,15 @@ func findEventById(a *abi.ABI, topic []byte) (*abi.Event, error) {
 	return nil, fmt.Errorf("no event with id: %#x", topic)
 }
 
-func (self *TxAnalyzer) AnalyzeMethodCall(abi *abi.ABI, data []byte) (method string, params []ParamResult, err error) {
+func (self *TxAnalyzer) AnalyzeMethodCall(abi *abi.ABI, data []byte) (method string, params []ParamResult, gnosisResult *GnosisResult, err error) {
 	m, err := abi.MethodById(data)
 	if err != nil {
-		return "", []ParamResult{}, err
+		return "", []ParamResult{}, nil, err
 	}
 	method = m.Name
 	ps, err := m.Inputs.UnpackValues(data[4:])
 	if err != nil {
-		return method, []ParamResult{}, err
+		return method, []ParamResult{}, nil, err
 	}
 	params = []ParamResult{}
 	for i, input := range m.Inputs {
@@ -114,7 +114,12 @@ func (self *TxAnalyzer) AnalyzeMethodCall(abi *abi.ABI, data []byte) (method str
 			Value: self.ParamAsString(input.Type, ps[i]),
 		})
 	}
-	return method, params, nil
+
+	if isGnosisMultisig(m, ps) {
+		// fmt.Printf("    ==> Gnosis Multisig init data:\n")
+		gnosisResult = self.gnosisMultisigInitData(m.Inputs, ps)
+	}
+	return method, params, gnosisResult, nil
 }
 
 func (self *TxAnalyzer) AnalyzeLog(abi *abi.ABI, l *types.Log) (LogResult, error) {
@@ -157,7 +162,7 @@ func (self *TxAnalyzer) analyzeContractTx(txinfo ethutils.TxInfo, abi *abi.ABI, 
 	result.Contract.Name = self.addrdb.GetName(result.Contract.Address)
 	// fmt.Printf("------------------------------------------Contract call info-------------------------------------------------------------\n")
 	data := txinfo.Tx.Data()
-	methodName, params, err := self.AnalyzeMethodCall(abi, data)
+	methodName, params, gnosisResult, err := self.AnalyzeMethodCall(abi, data)
 	if err != nil {
 		result.Error = fmt.Sprintf("Cannot analyze the method call: %s", err)
 		return
@@ -166,72 +171,15 @@ func (self *TxAnalyzer) analyzeContractTx(txinfo ethutils.TxInfo, abi *abi.ABI, 
 	result.Method = methodName
 	result.Params = append(result.Params, params...)
 
-	m, err := abi.MethodById(data)
-	if err != nil {
-		result.Error = fmt.Sprintf("Cannot get corresponding method from the ABI: %s", err)
-		return
-	}
-
-	ps, err := m.Inputs.UnpackValues(data[4:])
-	if err != nil {
-		result.Error = fmt.Sprintf("Cannot parse params: %s", err)
-		return
-	}
-
 	logs := txinfo.Receipt.Logs
-	// fmt.Printf("Event logs:\n")
 	for _, l := range logs {
 		logResult, err := self.AnalyzeLog(abi, l)
 		if err != nil {
 			result.Error += fmt.Sprintf("%s", err)
 		}
 		result.Logs = append(result.Logs, logResult)
-		// event, err := findEventById(abi, l.Topics[0].Bytes())
-		// if err == nil {
-		// 	// fmt.Printf("Log %d:\n", i)
-		// 	// fmt.Printf("    Event name: %s\n", event.Name)
-		// 	logResult := LogResult{
-		// 		Name:   event.Name,
-		// 		Topics: []TopicResult{},
-		// 		Data:   []ParamResult{},
-		// 	}
-		// 	iArgs, niArgs := SplitEventArguments(event.Inputs)
-		// 	for j, topic := range l.Topics[1:] {
-		// 		// fmt.Printf("    Topic %d - %s: %s\n", j+1, iArgs[j].Name, topic.Hex())
-		// 		logResult.Topics = append(logResult.Topics, TopicResult{
-		// 			Name:  iArgs[j].Name,
-		// 			Value: topic.Hex(),
-		// 		})
-		// 	}
-		// 	// fmt.Printf("    Data: %s\n", common.Bytes2Hex(l.Data))
-		// 	// fmt.Printf("    Inputs: %+v\n", event.Inputs)
-		// 	params, err := niArgs.UnpackValues(l.Data)
-		// 	if err != nil {
-		// 		result.Error += fmt.Sprintf("Cannot parse params: %s", err)
-		// 	} else {
-		// 		for i, input := range niArgs {
-		// 			// fmt.Printf("    %s (%s): ", input.Name, input.Type)
-		// 			logResult.Data = append(logResult.Data, ParamResult{
-		// 				Name:  input.Name,
-		// 				Type:  input.Type.String(),
-		// 				Value: self.ParamAsString(input.Type, params[i]),
-		// 			})
-		// 		}
-		// 	}
-		// 	result.Logs = append(result.Logs, logResult)
-		// } else {
-		// 	result.Error += fmt.Sprintf("Cannot find event of topic %s in the abi.", l.Topics[0].Hex())
-		// }
 	}
-	if isGnosisMultisig(m, ps) {
-		// fmt.Printf("    ==> Gnosis Multisig init data:\n")
-		result.GnosisInit = &GnosisResult{
-			Contract: AddressResult{},
-			Method:   "",
-			Params:   []ParamResult{},
-		}
-		self.setGnosisMultisigInitData(m.Inputs, ps, result)
-	}
+	result.GnosisInit = gnosisResult
 }
 
 // this function only compares thee function and param names against
@@ -249,10 +197,16 @@ func isGnosisMultisig(method *abi.Method, params []interface{}) bool {
 	return true
 }
 
-func (self *TxAnalyzer) setGnosisMultisigInitData(inputs []abi.Argument, params []interface{}, result *TxResult) {
+func (self *TxAnalyzer) gnosisMultisigInitData(inputs []abi.Argument, params []interface{}) (result *GnosisResult) {
+	result = &GnosisResult{
+		Contract: AddressResult{},
+		Method:   "",
+		Params:   []ParamResult{},
+		Error:    "",
+	}
 	contract := params[0].(common.Address)
 	// fmt.Printf("    Contract: %s (%s)\n", contract.Hex(), "TODO")
-	result.GnosisInit.Contract = AddressResult{
+	result.Contract = AddressResult{
 		Address: contract.Hex(),
 		Name:    self.addrdb.GetName(contract.Hex()),
 	}
@@ -260,29 +214,30 @@ func (self *TxAnalyzer) setGnosisMultisigInitData(inputs []abi.Argument, params 
 	abi, err := self.reader.GetABI(contract.Hex())
 	if err != nil {
 		result.Error = fmt.Sprintf("Cannot get abi of the contract: %s", err)
-		return
+		return result
 	}
 	method, err := abi.MethodById(data)
 	if err != nil {
 		result.Error = fmt.Sprintf("Cannot get corresponding method from the ABI: %s", err)
-		return
+		return result
 	}
 	// fmt.Printf("    Method: %s\n", method.Name)
-	result.GnosisInit.Method = method.Name
+	result.Method = method.Name
 	ps, err := method.Inputs.UnpackValues(data[4:])
 	if err != nil {
 		result.Error = fmt.Sprintf("Cannot parse params: %s", err)
-		return
+		return result
 	}
 	// fmt.Printf("    Params:\n")
 	for i, input := range method.Inputs {
-		result.GnosisInit.Params = append(result.GnosisInit.Params, ParamResult{
+		result.Params = append(result.Params, ParamResult{
 			Name:  input.Name,
 			Type:  input.Type.String(),
 			Value: self.ParamAsString(input.Type, ps[i]),
 		})
 		// fmt.Printf("        %s (%s): ", input.Name, input.Type)
 	}
+	return result
 }
 
 func (self *TxAnalyzer) AnalyzeOffline(txinfo *ethutils.TxInfo, abi *abi.ABI, isContract bool) *TxResult {
