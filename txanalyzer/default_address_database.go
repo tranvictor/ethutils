@@ -67,6 +67,17 @@ func getDataFromDefaultFile() map[string]string {
 		fmt.Printf("reading addresses from ~/addresses.json failed: %s. Ignored.\n", err)
 		return map[string]string{}
 	}
+
+	content, err = ioutil.ReadFile(path.Join(dir, "secrets.json"))
+	if err == nil {
+		secret := map[string]string{}
+		err = json.Unmarshal(content, &secret)
+		if err == nil {
+			for addr, name := range secret {
+				result[addr] = name
+			}
+		}
+	}
 	return result
 }
 
