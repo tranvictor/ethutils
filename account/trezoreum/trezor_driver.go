@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/usbwallet/trezor"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -45,7 +47,21 @@ func (self *TrezorDriver) SetDevice(device io.ReadWriter) {
 	self.device = device
 }
 
-func (w *TrezorDriver) Exchange(req proto.Message, results ...proto.Message) (int, error) {
+func (self *TrezorDriver) Derive(path accounts.DerivationPath) (common.Address, error) {
+	address := new(trezor.EthereumAddress)
+	if _, err := self.Exchange(&trezor.EthereumGetAddress{AddressN: path}, address); err != nil {
+		return common.Address{}, err
+	}
+	if addr := address.GetAddressBin(); len(addr) > 0 { // Older firmwares use binary fomats
+		return common.BytesToAddress(addr), nil
+	}
+	if addr := address.GetAddressHex(); len(addr) > 0 { // Newer firmwares use hexadecimal fomats
+		return common.HexToAddress(addr), nil
+	}
+	return common.Address{}, errors.New("missing derived address")
+}
+
+func (self *TrezorDriver) Exchange(req proto.Message, results ...proto.Message) (int, error) {
 	// Construct the original message payload to chunk up
 	data, err := proto.Marshal(req)
 	if err != nil {
@@ -72,7 +88,7 @@ func (w *TrezorDriver) Exchange(req proto.Message, results ...proto.Message) (in
 			payload = nil
 		}
 		// Send over to the device
-		if _, err := w.device.Write(chunk); err != nil {
+		if _, err := self.device.Write(chunk); err != nil {
 			return 0, err
 		}
 	}
@@ -83,7 +99,7 @@ func (w *TrezorDriver) Exchange(req proto.Message, results ...proto.Message) (in
 	)
 	for {
 		// Read the next chunk from the Trezor wallet
-		if _, err := io.ReadFull(w.device, chunk); err != nil {
+		if _, err := io.ReadFull(self.device, chunk); err != nil {
 			return 0, err
 		}
 
@@ -120,7 +136,7 @@ func (w *TrezorDriver) Exchange(req proto.Message, results ...proto.Message) (in
 	}
 	if kind == uint16(trezor.MessageType_MessageType_ButtonRequest) {
 		// Trezor is waiting for user confirmation, ack and wait for the next message
-		return w.Exchange(&trezor.ButtonAck{}, results...)
+		return self.Exchange(&trezor.ButtonAck{}, results...)
 	}
 	for i, res := range results {
 		if trezor.Type(res) == kind {
