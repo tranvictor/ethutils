@@ -3,6 +3,7 @@ package account
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/tranvictor/ethutils/account/ledgereum"
 	"github.com/tranvictor/ethutils/account/trezoreum"
 	"github.com/tranvictor/ethutils/broadcaster"
 	"github.com/tranvictor/ethutils/reader"
@@ -49,6 +50,19 @@ func NewRopstenAccountFromPrivateKeyFile(file string) (*Account, error) {
 
 func NewRopstenTrezorAccount(path string, address string) (*Account, error) {
 	signer, err := trezoreum.NewTrezorSigner(path, address)
+	if err != nil {
+		return nil, err
+	}
+	return &Account{
+		signer,
+		reader.NewRopstenReader(),
+		broadcaster.NewRopstenBroadcaster(),
+		common.HexToAddress(address),
+	}, nil
+}
+
+func NewRopstenLedgerAccount(path string, address string) (*Account, error) {
+	signer, err := ledgereum.NewLedgerSigner(path, address)
 	if err != nil {
 		return nil, err
 	}
