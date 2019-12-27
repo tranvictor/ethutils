@@ -7,7 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/types"
-	kusb "github.com/tranvictor/usb"
+	kusb "github.com/karalabe/usb"
 )
 
 const (

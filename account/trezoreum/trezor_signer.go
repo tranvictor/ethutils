@@ -1,4 +1,4 @@
-package trezor
+package trezoreum
 
 import (
 	"fmt"
@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/tranvictor/trezoreum"
 )
 
 type TrezorSigner struct {
@@ -15,7 +14,7 @@ type TrezorSigner struct {
 	mu             sync.Mutex
 	devmu          sync.Mutex
 	deviceUnlocked bool
-	trezor         trezoreum.Bridge
+	trezor         Bridge
 	chainID        int64
 }
 
@@ -27,14 +26,14 @@ func (self *TrezorSigner) Unlock() error {
 		return err
 	}
 	fmt.Printf("Firmware version: %d.%d.%d\n", *info.MajorVersion, *info.MinorVersion, *info.PatchVersion)
-	for state != trezoreum.Ready {
-		if state == trezoreum.WaitingForPin {
-			pin := trezoreum.PromptPINFromStdin()
+	for state != Ready {
+		if state == WaitingForPin {
+			pin := PromptPINFromStdin()
 			state, err = self.trezor.UnlockByPin(pin)
 			if err != nil {
 				fmt.Printf("Pin error: %s\n", err)
 			}
-		} else if state == trezoreum.WaitingForPassphrase {
+		} else if state == WaitingForPassphrase {
 			fmt.Printf("Not support passphrase yet\n")
 		}
 	}
@@ -62,7 +61,7 @@ func NewRopstenTrezorSigner(path string, address string) (*TrezorSigner, error) 
 	if err != nil {
 		return nil, err
 	}
-	trezor, err := trezoreum.NewTrezoreum()
+	trezor, err := NewTrezoreum()
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +80,7 @@ func NewTrezorSigner(path string, address string) (*TrezorSigner, error) {
 	if err != nil {
 		return nil, err
 	}
-	trezor, err := trezoreum.NewTrezoreum()
+	trezor, err := NewTrezoreum()
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +99,7 @@ func NewTrezorTomoSigner(path string, address string) (*TrezorSigner, error) {
 	if err != nil {
 		return nil, err
 	}
-	trezor, err := trezoreum.NewTrezoreum()
+	trezor, err := NewTrezoreum()
 	if err != nil {
 		return nil, err
 	}

@@ -4,7 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/tranvictor/ethutils/account/ledgereum"
-	"github.com/tranvictor/ethutils/account/trezor"
+	"github.com/tranvictor/ethutils/account/trezoreum"
 	"github.com/tranvictor/ethutils/broadcaster"
 	"github.com/tranvictor/ethutils/reader"
 )
@@ -63,7 +63,7 @@ func NewLedgerAccount(path string, address string) (*Account, error) {
 }
 
 func NewTrezorAccount(path string, address string) (*Account, error) {
-	signer, err := trezor.NewTrezorSigner(path, address)
+	signer, err := trezoreum.NewTrezorSigner(path, address)
 	if err != nil {
 		return nil, err
 	}
