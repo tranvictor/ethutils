@@ -176,13 +176,7 @@ func (self *Trezoreum) UnlockByPassphrase(passphrase string) (TrezorState, error
 }
 
 func (self *Trezoreum) Derive(path accounts.DerivationPath) (common.Address, error) {
-	address := trezor.EthereumAddress{}
-	if _, err := self.trezorExchange(&trezor.EthereumGetAddress{AddressN: []uint32(path)}, &address); err != nil {
-		return common.Address{}, err
-	}
-	// we have to use XXX_unrecognized here because the proto file we are using
-	// is different to the one that was used in firmware 1.7.3
-	return common.BytesToAddress(address.GetAddressBin()), nil
+	return self.core.Derive(path)
 }
 
 func (self *Trezoreum) Sign(path accounts.DerivationPath, tx *types.Transaction, chainID *big.Int) (common.Address, *types.Transaction, error) {
