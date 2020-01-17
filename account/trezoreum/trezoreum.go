@@ -195,6 +195,7 @@ func (self *Trezoreum) Sign(path accounts.DerivationPath, tx *types.Transaction,
 	if to := tx.To(); to != nil {
 		// Non contract deploy, set recipient explicitly
 		hex := to.Hex()
+		// fmt.Printf("hex: %s\n", hex)
 		request.ToHex = &hex     // Newer firmwares (old will ignore)
 		request.ToBin = (*to)[:] // Older firmwares (new will ignore)
 	}

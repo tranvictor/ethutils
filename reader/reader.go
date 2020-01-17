@@ -1,114 +1,64 @@
 package reader
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/big"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/rpc"
 	eu "github.com/tranvictor/ethutils"
 )
 
-const TIMEOUT time.Duration = 4 * time.Second
-
-var SharedReader *EthReader
-var once sync.Once
-
 type EthReader struct {
-	chain   string
-	clients map[string]*rpc.Client
-
+	chain             string
+	nodes             map[string]EthereumNode
 	latestGasPrice    float64
 	gasPriceTimestamp int64
 	gpmu              sync.Mutex
 }
 
-func NewRopstenReader() *EthReader {
-	nodes := map[string]string{
-		"ropsten-infura": "https://ropsten.infura.io",
-	}
-	clients := map[string]*rpc.Client{}
+func newEthReaderGeneric(nodes map[string]string, chain string) *EthReader {
+	ns := map[string]EthereumNode{}
 	for name, c := range nodes {
-		client, err := rpc.Dial(c)
-		if err != nil {
-			log.Printf("Couldn't connect to: %s - %v", c, err)
-		} else {
-			clients[name] = client
-		}
+		ns[name] = NewOneNodeReader(name, c)
 	}
 	return &EthReader{
-		chain:             "ropsten",
-		clients:           clients,
+		chain:             chain,
+		nodes:             ns,
 		latestGasPrice:    0.0,
 		gasPriceTimestamp: 0,
 		gpmu:              sync.Mutex{},
 	}
 }
 
+func NewRopstenReader() *EthReader {
+	nodes := map[string]string{
+		"ropsten-infura": "https://ropsten.infura.io",
+	}
+	return newEthReaderGeneric(nodes, "ropsten")
+}
+
 func NewTomoReader() *EthReader {
-	once.Do(func() {
-		nodes := map[string]string{
-			"mainnet-tomo": "https://rpc.tomochain.com",
-		}
-		clients := map[string]*rpc.Client{}
-		for name, c := range nodes {
-			client, err := rpc.Dial(c)
-			if err != nil {
-				log.Printf("Couldn't connect to: %s - %v", c, err)
-			} else {
-				clients[name] = client
-			}
-		}
-		SharedReader = &EthReader{
-			chain:             "tomo",
-			clients:           clients,
-			latestGasPrice:    0.0,
-			gasPriceTimestamp: 0,
-			gpmu:              sync.Mutex{},
-		}
-	})
-	return SharedReader
+	nodes := map[string]string{
+		"mainnet-tomo": "https://rpc.tomochain.com",
+	}
+	return newEthReaderGeneric(nodes, "tomo")
 }
 
 func NewEthReader() *EthReader {
-	once.Do(func() {
-		nodes := map[string]string{
-			"mainnet-alchemy":  "https://eth-mainnet.alchemyapi.io/jsonrpc/3QSu5K3-xUgD_1WThGHmxfhe8QmmdmCC",
-			"mainnet-quiknode": "https://optionally-pleasant-horse.quiknode.io/9d72a0f8-0d8b-4e4c-aef1-eb529e05cdb9/V1ZsC_tuomfETYotFo4KKA==/",
-			"mainnet-infura":   "https://mainnet.infura.io",
-			"mainnet-kyber":    "https://semi-node.kyber.network",
-		}
-		clients := map[string]*rpc.Client{}
-		for name, c := range nodes {
-			client, err := rpc.Dial(c)
-			if err != nil {
-				log.Printf("Couldn't connect to: %s - %v", c, err)
-			} else {
-				clients[name] = client
-			}
-		}
-		SharedReader = &EthReader{
-			chain:             "ethereum",
-			clients:           clients,
-			latestGasPrice:    0.0,
-			gasPriceTimestamp: 0,
-			gpmu:              sync.Mutex{},
-		}
-	})
-	return SharedReader
+	nodes := map[string]string{
+		"mainnet-alchemy": "https://eth-mainnet.alchemyapi.io/jsonrpc/YP5f6eM2wC9c2nwJfB0DC1LObdSY7Qfv",
+		"mainnet-infura":  "https://mainnet.infura.io/v3/247128ae36b6444d944d4c3793c8e3f5",
+	}
+	return newEthReaderGeneric(nodes, "ethereum")
 }
 
 // gas station response
@@ -211,52 +161,73 @@ func (self *EthReader) GetABI(address string) (*abi.ABI, error) {
 	return nil, errors.New("unhandled chain")
 }
 
+func errorInfo(errs []error) string {
+	estrs := []string{}
+	for i, e := range errs {
+		estrs = append(estrs, fmt.Sprintf("%d. %s", i+1, e))
+	}
+	return strings.Join(estrs, "\n")
+}
+
+func wrapError(e error, name string) error {
+	if e == nil {
+		return nil
+	}
+	return fmt.Errorf("%s: %s", name, e)
+}
+
+type estimateGasResult struct {
+	Gas   uint64
+	Error error
+}
+
 func (self *EthReader) EstimateGas(from, to string, priceGwei, value float64, data []byte) (uint64, error) {
-	fromAddr := common.HexToAddress(from)
-	var toAddrPtr *common.Address
-	if to != "" {
-		toAddr := common.HexToAddress(to)
-		toAddrPtr = &toAddr
+	resCh := make(chan estimateGasResult, len(self.nodes))
+	for _, node := range self.nodes {
+		go func() {
+			gas, err := node.EstimateGas(from, to, priceGwei, value, data)
+			resCh <- estimateGasResult{
+				Gas:   gas,
+				Error: wrapError(err, node.NodeName()),
+			}
+		}()
 	}
-	price := eu.FloatToBigInt(priceGwei, 9)
-	v := eu.FloatToBigInt(value, 18)
-	errors := map[string]error{}
-	for name, client := range self.clients {
-		ethcli := ethclient.NewClient(client)
-		timeout, cancel := context.WithTimeout(context.Background(), TIMEOUT)
-		gas, err := ethcli.EstimateGas(timeout, ethereum.CallMsg{
-			From:     fromAddr,
-			To:       toAddrPtr,
-			Gas:      0,
-			GasPrice: price,
-			Value:    v,
-			Data:     data,
-		})
-		defer cancel()
-		if err == nil {
-			return gas, err
-		} else {
-			errors[name] = err
+	errs := []error{}
+	for i := 0; i < len(self.nodes); i++ {
+		result := <-resCh
+		if result.Error == nil {
+			return result.Gas, result.Error
 		}
+		errs = append(errs, result.Error)
 	}
-	return 0, makeError(errors)
+	return 0, fmt.Errorf("Couldn't read from any nodes: %s", errorInfo(errs))
+}
+
+type getCodeResponse struct {
+	Code  []byte
+	Error error
 }
 
 func (self *EthReader) GetCode(address string) (code []byte, err error) {
-	errors := map[string]error{}
-	addr := common.HexToAddress(address)
-	for name, client := range self.clients {
-		ethcli := ethclient.NewClient(client)
-		timeout, cancel := context.WithTimeout(context.Background(), TIMEOUT)
-		code, err = ethcli.CodeAt(timeout, addr, nil)
-		defer cancel()
-		if err == nil {
-			return code, nil
-		} else {
-			errors[name] = err
-		}
+	resCh := make(chan getCodeResponse, len(self.nodes))
+	for _, node := range self.nodes {
+		go func() {
+			code, err := node.GetCode(address)
+			resCh <- getCodeResponse{
+				Code:  code,
+				Error: wrapError(err, node.NodeName()),
+			}
+		}()
 	}
-	return code, makeError(errors)
+	errs := []error{}
+	for i := 0; i < len(self.nodes); i++ {
+		result := <-resCh
+		if result.Error == nil {
+			return result.Code, result.Error
+		}
+		errs = append(errs, result.Error)
+	}
+	return nil, fmt.Errorf("Couldn't read from any nodes: %s", errorInfo(errs))
 }
 
 func (self *EthReader) TxInfoFromHash(tx string) (eu.TxInfo, error) {
@@ -347,155 +318,176 @@ func (self *EthReader) RecommendedGasPrice() (float64, error) {
 	return 0, errors.New("unhandled chain")
 }
 
+type getBalanceResponse struct {
+	Balance *big.Int
+	Error   error
+}
+
 func (self *EthReader) GetBalance(address string) (balance *big.Int, err error) {
-	errors := map[string]error{}
-	acc := common.HexToAddress(address)
-	for name, client := range self.clients {
-		ethcli := ethclient.NewClient(client)
-		timeout, cancel := context.WithTimeout(context.Background(), TIMEOUT)
-		balance, err = ethcli.BalanceAt(timeout, acc, nil)
-		defer cancel()
-		if err == nil {
-			return balance, err
-		} else {
-			errors[name] = err
-		}
+	resCh := make(chan getBalanceResponse, len(self.nodes))
+	for _, node := range self.nodes {
+		go func() {
+			balance, err := node.GetBalance(address)
+			resCh <- getBalanceResponse{
+				Balance: balance,
+				Error:   wrapError(err, node.NodeName()),
+			}
+		}()
 	}
-	return balance, makeError(errors)
+	errs := []error{}
+	for i := 0; i < len(self.nodes); i++ {
+		result := <-resCh
+		if result.Error == nil {
+			return result.Balance, result.Error
+		}
+		errs = append(errs, result.Error)
+	}
+	return nil, fmt.Errorf("Couldn't read from any nodes: %s", errorInfo(errs))
+}
+
+type getNonceResponse struct {
+	Nonce uint64
+	Error error
 }
 
 func (self *EthReader) GetMinedNonce(address string) (nonce uint64, err error) {
-	errors := map[string]error{}
-	acc := common.HexToAddress(address)
-	for name, client := range self.clients {
-		ethcli := ethclient.NewClient(client)
-		timeout, cancel := context.WithTimeout(context.Background(), TIMEOUT)
-		nonce, err = ethcli.NonceAt(timeout, acc, nil)
-		defer cancel()
-		if err == nil {
-			return nonce, err
-		} else {
-			errors[name] = err
-		}
+	resCh := make(chan getNonceResponse, len(self.nodes))
+	for _, node := range self.nodes {
+		go func() {
+			nonce, err := node.GetMinedNonce(address)
+			resCh <- getNonceResponse{
+				Nonce: nonce,
+				Error: wrapError(err, node.NodeName()),
+			}
+		}()
 	}
-	return nonce, makeError(errors)
+	errs := []error{}
+	for i := 0; i < len(self.nodes); i++ {
+		result := <-resCh
+		if result.Error == nil {
+			return result.Nonce, result.Error
+		}
+		errs = append(errs, result.Error)
+	}
+	return 0, fmt.Errorf("Couldn't read from any nodes: %s", errorInfo(errs))
 }
 
 func (self *EthReader) GetPendingNonce(address string) (nonce uint64, err error) {
-	errors := map[string]error{}
-	acc := common.HexToAddress(address)
-	for name, client := range self.clients {
-		ethcli := ethclient.NewClient(client)
-		timeout, cancel := context.WithTimeout(context.Background(), TIMEOUT)
-		nonce, err = ethcli.PendingNonceAt(timeout, acc)
-		defer cancel()
-		if err == nil {
-			return nonce, err
-		} else {
-			errors[name] = err
-		}
+	resCh := make(chan getNonceResponse, len(self.nodes))
+	for _, node := range self.nodes {
+		go func() {
+			nonce, err := node.GetPendingNonce(address)
+			resCh <- getNonceResponse{
+				Nonce: nonce,
+				Error: wrapError(err, node.NodeName()),
+			}
+		}()
 	}
-	return nonce, makeError(errors)
+	errs := []error{}
+	for i := 0; i < len(self.nodes); i++ {
+		result := <-resCh
+		if result.Error == nil {
+			return result.Nonce, result.Error
+		}
+		errs = append(errs, result.Error)
+	}
+	return 0, fmt.Errorf("Couldn't read from any nodes: %s", errorInfo(errs))
+}
+
+type transactionReceiptResponse struct {
+	Receipt *types.Receipt
+	Error   error
 }
 
 func (self *EthReader) TransactionReceipt(txHash string) (receipt *types.Receipt, err error) {
-	errors := map[string]error{}
-	hash := common.HexToHash(txHash)
-	for name, client := range self.clients {
-		ethcli := ethclient.NewClient(client)
-		timeout, cancel := context.WithTimeout(context.Background(), TIMEOUT)
-		receipt, err = ethcli.TransactionReceipt(timeout, hash)
-		defer cancel()
-		if err == nil {
-			return receipt, nil
-		} else {
-			errors[name] = err
-		}
+	resCh := make(chan transactionReceiptResponse, len(self.nodes))
+	for _, node := range self.nodes {
+		go func() {
+			receipt, err := node.TransactionReceipt(txHash)
+			resCh <- transactionReceiptResponse{
+				Receipt: receipt,
+				Error:   wrapError(err, node.NodeName()),
+			}
+		}()
 	}
-	return receipt, makeError(errors)
+	errs := []error{}
+	for i := 0; i < len(self.nodes); i++ {
+		result := <-resCh
+		if result.Error == nil {
+			return result.Receipt, result.Error
+		}
+		errs = append(errs, result.Error)
+	}
+	return nil, fmt.Errorf("Couldn't read from any nodes: %s", errorInfo(errs))
 }
 
-func (self *EthReader) transactionByHashOnNode(ctx context.Context, hash common.Hash, client *rpc.Client) (tx *eu.Transaction, isPending bool, err error) {
-	var json *eu.Transaction
-	err = client.CallContext(ctx, &json, "eth_getTransactionByHash", hash)
-	if err != nil {
-		return nil, false, err
-	} else if json == nil {
-		return nil, false, ethereum.NotFound
-	} else if _, r, _ := json.RawSignatureValues(); r == nil {
-		return nil, false, fmt.Errorf("server returned transaction without signature")
-	}
-	return json, json.Extra.BlockNumber == nil, nil
+type transactionByHashResponse struct {
+	Tx        *eu.Transaction
+	IsPending bool
+	Error     error
 }
 
 func (self *EthReader) TransactionByHash(txHash string) (tx *eu.Transaction, isPending bool, err error) {
-	errors := map[string]error{}
-	hash := common.HexToHash(txHash)
-	for name, client := range self.clients {
-		// fmt.Printf("Start time: %s\n", time.Now())
-		timeout, cancel := context.WithTimeout(context.Background(), TIMEOUT)
-		tx, isPending, err = self.transactionByHashOnNode(timeout, hash, client)
-		// fmt.Printf("End time: %s\n", time.Now())
-		defer cancel()
-		if err == nil {
-			return tx, isPending, err
-		} else {
-			errors[name] = err
-		}
+	resCh := make(chan transactionByHashResponse, len(self.nodes))
+	for _, node := range self.nodes {
+		go func() {
+			tx, ispending, err := node.TransactionByHash(txHash)
+			resCh <- transactionByHashResponse{
+				Tx:        tx,
+				IsPending: ispending,
+				Error:     wrapError(err, node.NodeName()),
+			}
+		}()
 	}
-	return tx, isPending, makeError(errors)
+	errs := []error{}
+	for i := 0; i < len(self.nodes); i++ {
+		result := <-resCh
+		if result.Error == nil {
+			return result.Tx, result.IsPending, result.Error
+		}
+		errs = append(errs, result.Error)
+	}
+	return nil, false, fmt.Errorf("Couldn't read from any nodes: %s", errorInfo(errs))
 }
 
-func (self *EthReader) Call(result interface{}, method string, args ...interface{}) error {
-	errors := map[string]error{}
-	for name, client := range self.clients {
-		timeout, cancel := context.WithTimeout(context.Background(), 4*time.Second)
-		err := client.CallContext(timeout, result, method, args)
-		defer cancel()
-		if err == nil {
-			return nil
-		} else {
-			errors[name] = err
-		}
-	}
-	return makeError(errors)
+// TODO: this method can't utilize all of the nodes because the result reference
+// will be written in parallel and it is not thread safe
+// func (self *EthReader) Call(result interface{}, method string, args ...interface{}) error {
+// 	for _, node := range self.nodes {
+// 		return node.Call(result, method, args...)
+// 	}
+// 	return fmt.Errorf("no nodes to call")
+// }
+
+type readContractToBytesResponse struct {
+	Data  []byte
+	Error error
 }
 
-func (self *EthReader) readContractToBytes(atBlock int64, caddr string, abi *abi.ABI, method string, args ...interface{}) ([]byte, error) {
-	errors := map[string]error{}
-	contract := eu.HexToAddress(caddr)
-	data, err := abi.Pack(method, args...)
-	if err != nil {
-		return []byte{}, err
+func (self *EthReader) ReadContractToBytes(atBlock int64, caddr string, abi *abi.ABI, method string, args ...interface{}) ([]byte, error) {
+	resCh := make(chan readContractToBytesResponse, len(self.nodes))
+	for _, node := range self.nodes {
+		go func() {
+			data, err := node.ReadContractToBytes(atBlock, caddr, abi, method, args...)
+			resCh <- readContractToBytesResponse{
+				Data:  data,
+				Error: wrapError(err, node.NodeName()),
+			}
+		}()
 	}
-
-	var blockBig *big.Int
-	if atBlock >= 0 {
-		blockBig = big.NewInt(atBlock)
-	}
-	for name, client := range self.clients {
-		timeout, cancel := context.WithTimeout(context.Background(), 4*time.Second)
-		ethcli := ethclient.NewClient(client)
-		result, err := ethcli.CallContract(timeout, ethereum.CallMsg{
-			From:     common.Address{},
-			To:       &contract,
-			Gas:      0,
-			GasPrice: nil,
-			Value:    nil,
-			Data:     data,
-		}, blockBig)
-		defer cancel()
-		if err == nil {
-			return result, nil
-		} else {
-			errors[name] = err
+	errs := []error{}
+	for i := 0; i < len(self.nodes); i++ {
+		result := <-resCh
+		if result.Error == nil {
+			return result.Data, result.Error
 		}
+		errs = append(errs, result.Error)
 	}
-	return []byte{}, makeError(errors)
+	return nil, fmt.Errorf("Couldn't read from any nodes: %s", errorInfo(errs))
 }
 
 func (self *EthReader) ReadHistoryContractWithABI(atBlock uint64, result interface{}, caddr string, abi *abi.ABI, method string, args ...interface{}) error {
-	responseBytes, err := self.readContractToBytes(int64(atBlock), caddr, abi, method, args...)
+	responseBytes, err := self.ReadContractToBytes(int64(atBlock), caddr, abi, method, args...)
 	if err != nil {
 		return err
 	}
@@ -503,7 +495,7 @@ func (self *EthReader) ReadHistoryContractWithABI(atBlock uint64, result interfa
 }
 
 func (self *EthReader) ReadContractWithABI(result interface{}, caddr string, abi *abi.ABI, method string, args ...interface{}) error {
-	responseBytes, err := self.readContractToBytes(-1, caddr, abi, method, args...)
+	responseBytes, err := self.ReadContractToBytes(-1, caddr, abi, method, args...)
 	if err != nil {
 		return err
 	}
@@ -566,21 +558,31 @@ func (self *EthReader) ERC20Decimal(caddr string) (int64, error) {
 	return int64(result), err
 }
 
+type headerByNumberResponse struct {
+	Header *types.Header
+	Error  error
+}
+
 func (self *EthReader) HeaderByNumber(number int64) (*types.Header, error) {
-	errors := map[string]error{}
-	numberBig := big.NewInt(number)
-	for name, client := range self.clients {
-		timeout, cancel := context.WithTimeout(context.Background(), 4*time.Second)
-		ethcli := ethclient.NewClient(client)
-		result, err := ethcli.HeaderByNumber(timeout, numberBig)
-		defer cancel()
-		if err == nil {
-			return result, nil
-		} else {
-			errors[name] = err
-		}
+	resCh := make(chan headerByNumberResponse, len(self.nodes))
+	for _, node := range self.nodes {
+		go func() {
+			header, err := node.HeaderByNumber(number)
+			resCh <- headerByNumberResponse{
+				Header: header,
+				Error:  wrapError(err, node.NodeName()),
+			}
+		}()
 	}
-	return nil, makeError(errors)
+	errs := []error{}
+	for i := 0; i < len(self.nodes); i++ {
+		result := <-resCh
+		if result.Error == nil {
+			return result.Header, result.Error
+		}
+		errs = append(errs, result.Error)
+	}
+	return nil, fmt.Errorf("Couldn't read from any nodes: %s", errorInfo(errs))
 }
 
 func (self *EthReader) HistoryERC20Allowance(atBlock uint64, caddr string, owner string, spender string) (*big.Int, error) {
@@ -623,32 +625,30 @@ func (self *EthReader) AddressFromContract(contract string, method string) (*com
 	return &result, nil
 }
 
+type getLogsResponse struct {
+	Logs  []types.Log
+	Error error
+}
+
 // if toBlock < 0, it will query to the latest block
 func (self *EthReader) GetLogs(fromBlock, toBlock int, addresses []string, topic string) ([]types.Log, error) {
-	q := &ethereum.FilterQuery{}
-	q.BlockHash = nil
-	q.FromBlock = big.NewInt(int64(fromBlock))
-	if toBlock < 0 {
-		q.ToBlock = nil
-	} else {
-		q.ToBlock = big.NewInt(int64(toBlock))
+	resCh := make(chan getLogsResponse, len(self.nodes))
+	for _, node := range self.nodes {
+		go func() {
+			logs, err := node.GetLogs(fromBlock, toBlock, addresses, topic)
+			resCh <- getLogsResponse{
+				Logs:  logs,
+				Error: wrapError(err, node.NodeName()),
+			}
+		}()
 	}
-	q.Addresses = eu.HexToAddresses(addresses)
-	q.Topics = [][]common.Hash{
-		[]common.Hash{eu.HexToHash(topic)},
-	}
-
-	errors := map[string]error{}
-	for name, client := range self.clients {
-		timeout, cancel := context.WithTimeout(context.Background(), 4*time.Second)
-		ethcli := ethclient.NewClient(client)
-		result, err := ethcli.FilterLogs(timeout, *q)
-		defer cancel()
-		if err == nil {
-			return result, nil
-		} else {
-			errors[name] = err
+	errs := []error{}
+	for i := 0; i < len(self.nodes); i++ {
+		result := <-resCh
+		if result.Error == nil {
+			return result.Logs, result.Error
 		}
+		errs = append(errs, result.Error)
 	}
-	return nil, makeError(errors)
+	return nil, fmt.Errorf("Couldn't read from any nodes: %s", errorInfo(errs))
 }
