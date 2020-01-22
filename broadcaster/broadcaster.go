@@ -122,9 +122,8 @@ func NewTomoBroadcaster() *Broadcaster {
 func NewBroadcaster() *Broadcaster {
 	once.Do(func() {
 		nodes := map[string]string{
-			"mainnet-quiknode": "https://optionally-pleasant-horse.quiknode.io/9d72a0f8-0d8b-4e4c-aef1-eb529e05cdb9/V1ZsC_tuomfETYotFo4KKA==/",
-			"mainnet-infura":   "https://mainnet.infura.io",
-			"mainnet-kyber":    "https://semi-node.kyber.network",
+			"mainnet-alchemy": "https://eth-mainnet.alchemyapi.io/jsonrpc/YP5f6eM2wC9c2nwJfB0DC1LObdSY7Qfv",
+			"mainnet-infura":  "https://mainnet.infura.io/v3/247128ae36b6444d944d4c3793c8e3f5",
 		}
 		clients := map[string]*rpc.Client{}
 		for name, c := range nodes {
