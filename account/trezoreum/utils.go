@@ -3,13 +3,11 @@ package trezoreum
 import (
 	"fmt"
 	"syscall"
-
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 func getPassword(prompt string) string {
 	fmt.Print(prompt)
-	bytePassword, _ := terminal.ReadPassword(int(syscall.Stdin))
+	bytePassword, _ := ReadPassword(int(syscall.Stdin))
 	fmt.Printf("\n")
 	return string(bytePassword)
 }
