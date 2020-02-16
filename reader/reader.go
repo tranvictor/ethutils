@@ -39,18 +39,30 @@ func newEthReaderGeneric(nodes map[string]string, chain string) *EthReader {
 	}
 }
 
+func NewRopstenReaderWithCustomNodes(nodes map[string]string) *EthReader {
+	return newEthReaderGeneric(nodes, "ropsten")
+}
+
 func NewRopstenReader() *EthReader {
 	nodes := map[string]string{
 		"ropsten-infura": "https://ropsten.infura.io",
 	}
-	return newEthReaderGeneric(nodes, "ropsten")
+	return NewRopstenReaderWithCustomNodes(nodes)
+}
+
+func NewTomoReaderWithCustomNodes(nodes map[string]string) *EthReader {
+	return newEthReaderGeneric(nodes, "tomo")
 }
 
 func NewTomoReader() *EthReader {
 	nodes := map[string]string{
 		"mainnet-tomo": "https://rpc.tomochain.com",
 	}
-	return newEthReaderGeneric(nodes, "tomo")
+	return NewTomoReaderWithCustomNodes(nodes)
+}
+
+func NewEthReaderWithCustomNodes(nodes map[string]string) *EthReader {
+	return newEthReaderGeneric(nodes, "ethereum")
 }
 
 func NewEthReader() *EthReader {
@@ -58,7 +70,7 @@ func NewEthReader() *EthReader {
 		"mainnet-alchemy": "https://eth-mainnet.alchemyapi.io/jsonrpc/YP5f6eM2wC9c2nwJfB0DC1LObdSY7Qfv",
 		"mainnet-infura":  "https://mainnet.infura.io/v3/247128ae36b6444d944d4c3793c8e3f5",
 	}
-	return newEthReaderGeneric(nodes, "ethereum")
+	return NewEthReaderWithCustomNodes(nodes)
 }
 
 // gas station response
@@ -184,11 +196,12 @@ type estimateGasResult struct {
 func (self *EthReader) EstimateGas(from, to string, priceGwei, value float64, data []byte) (uint64, error) {
 	resCh := make(chan estimateGasResult, len(self.nodes))
 	for i, _ := range self.nodes {
+		n := self.nodes[i]
 		go func() {
-			gas, err := self.nodes[i].EstimateGas(from, to, priceGwei, value, data)
+			gas, err := n.EstimateGas(from, to, priceGwei, value, data)
 			resCh <- estimateGasResult{
 				Gas:   gas,
-				Error: wrapError(err, self.nodes[i].NodeName()),
+				Error: wrapError(err, n.NodeName()),
 			}
 		}()
 	}
@@ -211,11 +224,12 @@ type getCodeResponse struct {
 func (self *EthReader) GetCode(address string) (code []byte, err error) {
 	resCh := make(chan getCodeResponse, len(self.nodes))
 	for i, _ := range self.nodes {
+		n := self.nodes[i]
 		go func() {
-			code, err := self.nodes[i].GetCode(address)
+			code, err := n.GetCode(address)
 			resCh <- getCodeResponse{
 				Code:  code,
-				Error: wrapError(err, self.nodes[i].NodeName()),
+				Error: wrapError(err, n.NodeName()),
 			}
 		}()
 	}
@@ -326,11 +340,12 @@ type getBalanceResponse struct {
 func (self *EthReader) GetBalance(address string) (balance *big.Int, err error) {
 	resCh := make(chan getBalanceResponse, len(self.nodes))
 	for i, _ := range self.nodes {
+		n := self.nodes[i]
 		go func() {
-			balance, err := self.nodes[i].GetBalance(address)
+			balance, err := n.GetBalance(address)
 			resCh <- getBalanceResponse{
 				Balance: balance,
-				Error:   wrapError(err, self.nodes[i].NodeName()),
+				Error:   wrapError(err, n.NodeName()),
 			}
 		}()
 	}
@@ -353,11 +368,12 @@ type getNonceResponse struct {
 func (self *EthReader) GetMinedNonce(address string) (nonce uint64, err error) {
 	resCh := make(chan getNonceResponse, len(self.nodes))
 	for i, _ := range self.nodes {
+		n := self.nodes[i]
 		go func() {
-			nonce, err := self.nodes[i].GetMinedNonce(address)
+			nonce, err := n.GetMinedNonce(address)
 			resCh <- getNonceResponse{
 				Nonce: nonce,
-				Error: wrapError(err, self.nodes[i].NodeName()),
+				Error: wrapError(err, n.NodeName()),
 			}
 		}()
 	}
@@ -375,11 +391,12 @@ func (self *EthReader) GetMinedNonce(address string) (nonce uint64, err error) {
 func (self *EthReader) GetPendingNonce(address string) (nonce uint64, err error) {
 	resCh := make(chan getNonceResponse, len(self.nodes))
 	for i, _ := range self.nodes {
+		n := self.nodes[i]
 		go func() {
-			nonce, err := self.nodes[i].GetPendingNonce(address)
+			nonce, err := n.GetPendingNonce(address)
 			resCh <- getNonceResponse{
 				Nonce: nonce,
-				Error: wrapError(err, self.nodes[i].NodeName()),
+				Error: wrapError(err, n.NodeName()),
 			}
 		}()
 	}
@@ -402,11 +419,12 @@ type transactionReceiptResponse struct {
 func (self *EthReader) TransactionReceipt(txHash string) (receipt *types.Receipt, err error) {
 	resCh := make(chan transactionReceiptResponse, len(self.nodes))
 	for i, _ := range self.nodes {
+		n := self.nodes[i]
 		go func() {
-			receipt, err := self.nodes[i].TransactionReceipt(txHash)
+			receipt, err := n.TransactionReceipt(txHash)
 			resCh <- transactionReceiptResponse{
 				Receipt: receipt,
-				Error:   wrapError(err, self.nodes[i].NodeName()),
+				Error:   wrapError(err, n.NodeName()),
 			}
 		}()
 	}
@@ -430,12 +448,13 @@ type transactionByHashResponse struct {
 func (self *EthReader) TransactionByHash(txHash string) (tx *eu.Transaction, isPending bool, err error) {
 	resCh := make(chan transactionByHashResponse, len(self.nodes))
 	for i, _ := range self.nodes {
+		n := self.nodes[i]
 		go func() {
-			tx, ispending, err := self.nodes[i].TransactionByHash(txHash)
+			tx, ispending, err := n.TransactionByHash(txHash)
 			resCh <- transactionByHashResponse{
 				Tx:        tx,
 				IsPending: ispending,
-				Error:     wrapError(err, self.nodes[i].NodeName()),
+				Error:     wrapError(err, n.NodeName()),
 			}
 		}()
 	}
@@ -467,11 +486,12 @@ type readContractToBytesResponse struct {
 func (self *EthReader) ReadContractToBytes(atBlock int64, caddr string, abi *abi.ABI, method string, args ...interface{}) ([]byte, error) {
 	resCh := make(chan readContractToBytesResponse, len(self.nodes))
 	for i, _ := range self.nodes {
+		n := self.nodes[i]
 		go func() {
-			data, err := self.nodes[i].ReadContractToBytes(atBlock, caddr, abi, method, args...)
+			data, err := n.ReadContractToBytes(atBlock, caddr, abi, method, args...)
 			resCh <- readContractToBytesResponse{
 				Data:  data,
-				Error: wrapError(err, self.nodes[i].NodeName()),
+				Error: wrapError(err, n.NodeName()),
 			}
 		}()
 	}
@@ -566,11 +586,12 @@ type headerByNumberResponse struct {
 func (self *EthReader) HeaderByNumber(number int64) (*types.Header, error) {
 	resCh := make(chan headerByNumberResponse, len(self.nodes))
 	for i, _ := range self.nodes {
+		n := self.nodes[i]
 		go func() {
-			header, err := self.nodes[i].HeaderByNumber(number)
+			header, err := n.HeaderByNumber(number)
 			resCh <- headerByNumberResponse{
 				Header: header,
-				Error:  wrapError(err, self.nodes[i].NodeName()),
+				Error:  wrapError(err, n.NodeName()),
 			}
 		}()
 	}
@@ -634,11 +655,12 @@ type getLogsResponse struct {
 func (self *EthReader) GetLogs(fromBlock, toBlock int, addresses []string, topic string) ([]types.Log, error) {
 	resCh := make(chan getLogsResponse, len(self.nodes))
 	for i, _ := range self.nodes {
+		n := self.nodes[i]
 		go func() {
-			logs, err := self.nodes[i].GetLogs(fromBlock, toBlock, addresses, topic)
+			logs, err := n.GetLogs(fromBlock, toBlock, addresses, topic)
 			resCh <- getLogsResponse{
 				Logs:  logs,
-				Error: wrapError(err, self.nodes[i].NodeName()),
+				Error: wrapError(err, n.NodeName()),
 			}
 		}()
 	}

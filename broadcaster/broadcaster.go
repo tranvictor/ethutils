@@ -55,10 +55,11 @@ func (self *Broadcaster) BroadcastTx(tx *types.Transaction) (string, bool, error
 func (self *Broadcaster) Broadcast(data string) (string, bool, error) {
 	failures := sync.Map{}
 	wg := sync.WaitGroup{}
-	for id, client := range self.clients {
+	for id, _ := range self.clients {
 		wg.Add(1)
 		timeout, cancel := context.WithTimeout(context.Background(), 4*time.Second)
-		self.broadcast(timeout, id, client, data, &wg, &failures)
+		cli := self.clients[id]
+		go self.broadcast(timeout, id, cli, data, &wg, &failures)
 		defer cancel()
 	}
 	wg.Wait()
