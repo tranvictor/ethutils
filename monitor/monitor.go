@@ -12,6 +12,10 @@ type TxMonitor struct {
 	reader *reader.EthReader
 }
 
+func NewGenericTxMonitor(r *reader.EthReader) *TxMonitor {
+	return &TxMonitor{r}
+}
+
 func NewRopstenTxMonitor() *TxMonitor {
 	return &TxMonitor{
 		reader: reader.NewRopstenReader(),

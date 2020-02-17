@@ -14,9 +14,6 @@ import (
 	"github.com/tranvictor/ethutils"
 )
 
-var SharedBroadcaster *Broadcaster
-var once sync.Once
-
 // Broadcaster takes a signed tx and try to broadcast it to all
 // nodes that it manages as fast as possible. It returns a map of
 // failures and a bool indicating that the tx is broadcasted to
@@ -81,10 +78,7 @@ func (self *Broadcaster) Broadcast(data string) (string, bool, error) {
 	return ethutils.RawTxToHash(data), len(result) != len(self.clients) && len(self.clients) > 0, makeError(result)
 }
 
-func NewRopstenBroadcaster() *Broadcaster {
-	nodes := map[string]string{
-		"ropsten-infura": "https://ropsten.infura.io",
-	}
+func NewGenericBroadcaster(nodes map[string]string) *Broadcaster {
 	clients := map[string]*rpc.Client{}
 	for name, c := range nodes {
 		client, err := rpc.Dial(c)
@@ -99,45 +93,24 @@ func NewRopstenBroadcaster() *Broadcaster {
 	}
 }
 
+func NewRopstenBroadcaster() *Broadcaster {
+	nodes := map[string]string{
+		"ropsten-infura": "https://ropsten.infura.io/v3/247128ae36b6444d944d4c3793c8e3f5",
+	}
+	return NewGenericBroadcaster(nodes)
+}
+
 func NewTomoBroadcaster() *Broadcaster {
-	once.Do(func() {
-		nodes := map[string]string{
-			"mainnet-tomo": "https://rpc.tomochain.com",
-		}
-		clients := map[string]*rpc.Client{}
-		for name, c := range nodes {
-			client, err := rpc.Dial(c)
-			if err != nil {
-				log.Printf("Couldn't connect to: %s - %v", c, err)
-			} else {
-				clients[name] = client
-			}
-		}
-		SharedBroadcaster = &Broadcaster{
-			clients: clients,
-		}
-	})
-	return SharedBroadcaster
+	nodes := map[string]string{
+		"mainnet-tomo": "https://rpc.tomochain.com",
+	}
+	return NewGenericBroadcaster(nodes)
 }
 
 func NewBroadcaster() *Broadcaster {
-	once.Do(func() {
-		nodes := map[string]string{
-			"mainnet-alchemy": "https://eth-mainnet.alchemyapi.io/jsonrpc/YP5f6eM2wC9c2nwJfB0DC1LObdSY7Qfv",
-			"mainnet-infura":  "https://mainnet.infura.io/v3/247128ae36b6444d944d4c3793c8e3f5",
-		}
-		clients := map[string]*rpc.Client{}
-		for name, c := range nodes {
-			client, err := rpc.Dial(c)
-			if err != nil {
-				log.Printf("Couldn't connect to: %s - %v", c, err)
-			} else {
-				clients[name] = client
-			}
-		}
-		SharedBroadcaster = &Broadcaster{
-			clients: clients,
-		}
-	})
-	return SharedBroadcaster
+	nodes := map[string]string{
+		"mainnet-alchemy": "https://eth-mainnet.alchemyapi.io/jsonrpc/YP5f6eM2wC9c2nwJfB0DC1LObdSY7Qfv",
+		"mainnet-infura":  "https://mainnet.infura.io/v3/247128ae36b6444d944d4c3793c8e3f5",
+	}
+	return NewGenericBroadcaster(nodes)
 }

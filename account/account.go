@@ -22,6 +22,14 @@ type Account struct {
 	address     common.Address
 }
 
+func (self *Account) SetReader(r *reader.EthReader) {
+	self.reader = r
+}
+
+func (self *Account) SetBroadcaster(b *broadcaster.Broadcaster) {
+	self.broadcaster = b
+}
+
 func (self *Account) Address() string {
 	return self.address.Hex()
 }

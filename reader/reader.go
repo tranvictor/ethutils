@@ -2,7 +2,6 @@ package reader
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -142,11 +141,30 @@ func (self *EthReader) GetTomoABI(address string) (*abi.ABI, error) {
 }
 
 func (self *EthReader) GetRopstenABIString(address string) (string, error) {
-	return "", errors.New("unhandled chain")
+	resp, err := http.Get(fmt.Sprintf("https://api-ropsten.etherscan.io/api?module=contract&action=getabi&address=%s&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV", address))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	abiresp := abiresponse{}
+	err = json.Unmarshal(body, &abiresp)
+	if err != nil {
+		return "", err
+	}
+	return abiresp.Result, err
 }
 
 func (self *EthReader) GetRopstenABI(address string) (*abi.ABI, error) {
-	return nil, errors.New("unhandled chain")
+	body, err := self.GetRopstenABIString(address)
+	if err != nil {
+		return nil, err
+	}
+	result, err := abi.JSON(strings.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 func (self *EthReader) GetABIString(address string) (string, error) {
@@ -158,7 +176,7 @@ func (self *EthReader) GetABIString(address string) (string, error) {
 	case "tomo":
 		return self.GetTomoABIString(address)
 	}
-	return "", errors.New("unhandled chain")
+	return "", fmt.Errorf("'%s' chain is not supported", self.chain)
 }
 
 func (self *EthReader) GetABI(address string) (*abi.ABI, error) {
@@ -170,7 +188,7 @@ func (self *EthReader) GetABI(address string) (*abi.ABI, error) {
 	case "tomo":
 		return self.GetTomoABI(address)
 	}
-	return nil, errors.New("unhandled chain")
+	return nil, fmt.Errorf("'%s' chain is not supported", self.chain)
 }
 
 func errorInfo(errs []error) string {
@@ -329,7 +347,7 @@ func (self *EthReader) RecommendedGasPrice() (float64, error) {
 	case "tomo":
 		return self.RecommendedGasPriceTomo()
 	}
-	return 0, errors.New("unhandled chain")
+	return 0, fmt.Errorf("'%s' chain is not supported", self.chain)
 }
 
 type getBalanceResponse struct {
