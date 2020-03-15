@@ -524,7 +524,7 @@ func (self *EthReader) ReadContractToBytes(atBlock int64, caddr string, abi *abi
 	return nil, fmt.Errorf("Couldn't read from any nodes: %s", errorInfo(errs))
 }
 
-func (self *EthReader) ReadHistoryContractWithABI(atBlock uint64, result interface{}, caddr string, abi *abi.ABI, method string, args ...interface{}) error {
+func (self *EthReader) ReadHistoryContractWithABI(atBlock int64, result interface{}, caddr string, abi *abi.ABI, method string, args ...interface{}) error {
 	responseBytes, err := self.ReadContractToBytes(int64(atBlock), caddr, abi, method, args...)
 	if err != nil {
 		return err
@@ -540,7 +540,7 @@ func (self *EthReader) ReadContractWithABI(result interface{}, caddr string, abi
 	return abi.Unpack(result, method, responseBytes)
 }
 
-func (self *EthReader) ReadHistoryContract(atBlock uint64, result interface{}, caddr string, method string, args ...interface{}) error {
+func (self *EthReader) ReadHistoryContract(atBlock int64, result interface{}, caddr string, method string, args ...interface{}) error {
 	abi, err := self.GetABI(caddr)
 	if err != nil {
 		return err
@@ -556,7 +556,7 @@ func (self *EthReader) ReadContract(result interface{}, caddr string, method str
 	return self.ReadContractWithABI(result, caddr, abi, method, args...)
 }
 
-func (self *EthReader) HistoryERC20Balance(atBlock uint64, caddr string, user string) (*big.Int, error) {
+func (self *EthReader) HistoryERC20Balance(atBlock int64, caddr string, user string) (*big.Int, error) {
 	abi, err := eu.GetERC20ABI()
 	if err != nil {
 		return nil, err
@@ -576,7 +576,7 @@ func (self *EthReader) ERC20Balance(caddr string, user string) (*big.Int, error)
 	return result, err
 }
 
-func (self *EthReader) HistoryERC20Decimal(atBlock uint64, caddr string) (int64, error) {
+func (self *EthReader) HistoryERC20Decimal(atBlock int64, caddr string) (int64, error) {
 	abi, err := eu.GetERC20ABI()
 	if err != nil {
 		return 0, err
@@ -624,7 +624,7 @@ func (self *EthReader) HeaderByNumber(number int64) (*types.Header, error) {
 	return nil, fmt.Errorf("Couldn't read from any nodes: %s", errorInfo(errs))
 }
 
-func (self *EthReader) HistoryERC20Allowance(atBlock uint64, caddr string, owner string, spender string) (*big.Int, error) {
+func (self *EthReader) HistoryERC20Allowance(atBlock int64, caddr string, owner string, spender string) (*big.Int, error) {
 	abi, err := eu.GetERC20ABI()
 	if err != nil {
 		return nil, err

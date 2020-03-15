@@ -239,7 +239,7 @@ func (self *OneNodeReader) ReadContractToBytes(atBlock int64, caddr string, abi 
 	}
 
 	var blockBig *big.Int
-	if atBlock >= 0 {
+	if atBlock > 0 {
 		blockBig = big.NewInt(atBlock)
 	}
 	timeout, cancel := context.WithTimeout(context.Background(), 4*time.Second)
