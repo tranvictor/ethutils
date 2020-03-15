@@ -692,3 +692,31 @@ func (self *EthReader) GetLogs(fromBlock, toBlock int, addresses []string, topic
 	}
 	return nil, fmt.Errorf("Couldn't read from any nodes: %s", errorInfo(errs))
 }
+
+type getBlockResponse struct {
+	Block uint64
+	Error error
+}
+
+func (self *EthReader) CurrentBlock() (uint64, error) {
+	resCh := make(chan getBlockResponse, len(self.nodes))
+	for i, _ := range self.nodes {
+		n := self.nodes[i]
+		go func() {
+			block, err := n.CurrentBlock()
+			resCh <- getBlockResponse{
+				Block: block,
+				Error: wrapError(err, n.NodeName()),
+			}
+		}()
+	}
+	errs := []error{}
+	for i := 0; i < len(self.nodes); i++ {
+		result := <-resCh
+		if result.Error == nil {
+			return result.Block, result.Error
+		}
+		errs = append(errs, result.Error)
+	}
+	return 0, fmt.Errorf("Couldn't read from any nodes: %s", errorInfo(errs))
+}

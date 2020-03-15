@@ -253,3 +253,17 @@ func (self *OneNodeReader) ReadContractToBytes(atBlock int64, caddr string, abi 
 		Data:     data,
 	}, blockBig)
 }
+
+func (self *OneNodeReader) CurrentBlock() (uint64, error) {
+	ethcli, err := self.EthClient()
+	if err != nil {
+		return 0, err
+	}
+	timeout, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	defer cancel()
+	header, err := ethcli.HeaderByNumber(timeout, nil)
+	if err != nil {
+		return 0, err
+	}
+	return header.Number.Uint64(), nil
+}

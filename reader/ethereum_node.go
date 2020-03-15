@@ -22,4 +22,5 @@ type EthereumNode interface {
 	ReadContractToBytes(atBlock int64, caddr string, abi *abi.ABI, method string, args ...interface{}) ([]byte, error)
 	HeaderByNumber(number int64) (*types.Header, error)
 	GetLogs(fromBlock, toBlock int, addresses []string, topic string) ([]types.Log, error)
+	CurrentBlock() (uint64, error)
 }
