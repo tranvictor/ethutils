@@ -56,9 +56,10 @@ func (self *Trezoreum) Unlock() error {
 			state, err = self.UnlockByPin(pin)
 			if err != nil {
 				fmt.Printf("Pin error: %s\n", err)
+				return err
 			}
 		} else if state == WaitingForPassphrase {
-			fmt.Printf("Not support passphrase yet\n")
+			return fmt.Errorf("Not support passphrase yet")
 		}
 	}
 	return nil
@@ -68,7 +69,21 @@ func (self *Trezoreum) Unlock() error {
 // message and retrieving the response. If multiple responses are possible, the
 // method will also return the index of the destination object used.
 func (self *Trezoreum) trezorExchange(req proto.Message, results ...proto.Message) (int, error) {
-	return self.core.Exchange(req, results...)
+	results = append(results, new(trezor.PinMatrixRequest))
+	resIndex, err := self.core.Exchange(req, results...)
+	if err != nil {
+		return resIndex, err
+	}
+	if resIndex == len(results)-1 {
+		pin := PromptPINFromStdin()
+		_, err = self.UnlockByPin(pin)
+		if err != nil {
+			fmt.Printf("Pin error: %s\n", err)
+			return resIndex, err
+		}
+		return self.core.Exchange(req, results...)
+	}
+	return resIndex, err
 }
 
 func (self *Trezoreum) GetDevice() ([]usb.DeviceInfo, error) {
@@ -139,11 +154,14 @@ func (self *Trezoreum) Init() (trezor.Features, TrezorState, error) {
 		return trezor.Features{}, Unexpected, err
 	}
 
-	// Do a manual ping, forcing the device to ask for its PIN and Passphrase
 	askPin := true
 	askPassphrase := true
-
-	res, err := self.trezorExchange(&trezor.Ping{PinProtection: &askPin, PassphraseProtection: &askPassphrase}, new(trezor.PinMatrixRequest), new(trezor.PassphraseRequest), new(trezor.Success))
+	res, err := self.trezorExchange(
+		&trezor.Ping{PinProtection: &askPin, PassphraseProtection: &askPassphrase},
+		new(trezor.PinMatrixRequest),
+		new(trezor.PassphraseRequest),
+		new(trezor.Success),
+	)
 	if err != nil {
 		return trezor.Features{}, Unexpected, err
 	}
@@ -154,6 +172,11 @@ func (self *Trezoreum) Init() (trezor.Features, TrezorState, error) {
 	case 1:
 		return features, WaitingForPassphrase, nil
 	case 2:
+		// if *features.PinCached {
+		// 	return features, Ready, nil
+		// } else {
+		// 	return features, WaitingForPin, nil
+		// }
 		return features, Ready, nil
 	default:
 		return features, Ready, nil
@@ -166,7 +189,8 @@ func (self *Trezoreum) UnlockByPin(pin string) (TrezorState, error) {
 		return Unexpected, err
 	}
 	if res == 1 {
-		return WaitingForPassphrase, nil
+		// this is to handle passphrase
+		return WaitingForPassphrase, fmt.Errorf("passphrase is not supported")
 	}
 	return Ready, nil
 }
@@ -176,7 +200,17 @@ func (self *Trezoreum) UnlockByPassphrase(passphrase string) (TrezorState, error
 }
 
 func (self *Trezoreum) Derive(path accounts.DerivationPath) (common.Address, error) {
-	return self.core.Derive(path)
+	address := new(trezor.EthereumAddress)
+	if _, err := self.trezorExchange(&trezor.EthereumGetAddress{AddressN: path}, address); err != nil {
+		return common.Address{}, err
+	}
+	if addr := address.GetAddressBin(); len(addr) > 0 { // Older firmwares use binary fomats
+		return common.BytesToAddress(addr), nil
+	}
+	if addr := address.GetAddressHex(); len(addr) > 0 { // Newer firmwares use hexadecimal fomats
+		return common.HexToAddress(addr), nil
+	}
+	return common.Address{}, errors.New("missing derived address")
 }
 
 func (self *Trezoreum) Sign(path accounts.DerivationPath, tx *types.Transaction, chainID *big.Int) (common.Address, *types.Transaction, error) {

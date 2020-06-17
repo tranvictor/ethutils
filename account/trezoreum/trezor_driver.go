@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/usbwallet/trezor"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -45,20 +43,6 @@ func NewTrezorDriver() *TrezorDriver {
 
 func (self *TrezorDriver) SetDevice(device io.ReadWriter) {
 	self.device = device
-}
-
-func (self *TrezorDriver) Derive(path accounts.DerivationPath) (common.Address, error) {
-	address := new(trezor.EthereumAddress)
-	if _, err := self.Exchange(&trezor.EthereumGetAddress{AddressN: path}, address); err != nil {
-		return common.Address{}, err
-	}
-	if addr := address.GetAddressBin(); len(addr) > 0 { // Older firmwares use binary fomats
-		return common.BytesToAddress(addr), nil
-	}
-	if addr := address.GetAddressHex(); len(addr) > 0 { // Newer firmwares use hexadecimal fomats
-		return common.HexToAddress(addr), nil
-	}
-	return common.Address{}, errors.New("missing derived address")
 }
 
 func (self *TrezorDriver) Exchange(req proto.Message, results ...proto.Message) (int, error) {

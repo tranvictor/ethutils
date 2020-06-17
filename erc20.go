@@ -1,4 +1,6 @@
-[
+package ethutils
+
+var erc20abi = `[
     {
         "constant": true,
         "inputs": [],
@@ -219,4 +221,4 @@
         "name": "Transfer",
         "type": "event"
     }
-]
+]`

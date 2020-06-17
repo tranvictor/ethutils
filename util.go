@@ -33,7 +33,11 @@ func getABIFromFile(filename string) (*abi.ABI, error) {
 }
 
 func GetERC20ABI() (*abi.ABI, error) {
-	return getABIFromFile("erc20.abi")
+	result, err := abi.JSON(strings.NewReader(erc20abi))
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 func PackERC20Data(function string, params ...interface{}) ([]byte, error) {
