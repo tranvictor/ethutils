@@ -10,11 +10,12 @@ import (
 )
 
 type TrezorSigner struct {
-	path    accounts.DerivationPath
-	mu      sync.Mutex
-	devmu   sync.Mutex
-	trezor  Bridge
-	chainID int64
+	path           accounts.DerivationPath
+	mu             sync.Mutex
+	devmu          sync.Mutex
+	deviceUnlocked bool
+	trezor         Bridge
+	chainID        int64
 }
 
 func (self *TrezorSigner) SignTx(tx *types.Transaction) (*types.Transaction, error) {
@@ -22,6 +23,12 @@ func (self *TrezorSigner) SignTx(tx *types.Transaction) (*types.Transaction, err
 	defer self.mu.Unlock()
 	fmt.Printf("Going to proceed signing procedure\n")
 	var err error
+	if !self.deviceUnlocked {
+		err = self.trezor.Unlock()
+		if err != nil {
+			return tx, err
+		}
+	}
 	_, tx, err = self.trezor.Sign(self.path, tx, big.NewInt(self.chainID))
 	return tx, err
 }
@@ -39,6 +46,7 @@ func NewRopstenTrezorSigner(path string, address string) (*TrezorSigner, error) 
 		p,
 		sync.Mutex{},
 		sync.Mutex{},
+		false,
 		trezor,
 		1,
 	}, nil
@@ -57,6 +65,7 @@ func NewTrezorSigner(path string, address string) (*TrezorSigner, error) {
 		p,
 		sync.Mutex{},
 		sync.Mutex{},
+		false,
 		trezor,
 		1,
 	}, nil
@@ -75,6 +84,7 @@ func NewTrezorTomoSigner(path string, address string) (*TrezorSigner, error) {
 		p,
 		sync.Mutex{},
 		sync.Mutex{},
+		false,
 		trezor,
 		88,
 	}, nil

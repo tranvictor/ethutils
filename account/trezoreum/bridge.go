@@ -24,6 +24,8 @@ type Bridge interface {
 	// device.
 	Init() (info trezor.Features, state TrezorState, err error)
 
+	Unlock() error
+
 	Derive(path accounts.DerivationPath) (common.Address, error)
 
 	Sign(path accounts.DerivationPath, tx *types.Transaction, chainID *big.Int) (common.Address, *types.Transaction, error)
