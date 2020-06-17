@@ -46,6 +46,16 @@ func (self *TrezorDriver) SetDevice(device io.ReadWriter) {
 }
 
 func (self *TrezorDriver) Exchange(req proto.Message, results ...proto.Message) (int, error) {
+	// fmt.Printf(
+	// 	"trezor exchange:\n    req(%s)\n",
+	// 	trezor.Name(trezor.Type(req)),
+	// )
+	// fmt.Printf("    expected: ")
+	// for _, r := range results {
+	// 	fmt.Printf("%s, ", trezor.Name(trezor.Type(r)))
+	// }
+	// fmt.Printf("\n")
+
 	// Construct the original message payload to chunk up
 	data, err := proto.Marshal(req)
 	if err != nil {
@@ -109,6 +119,8 @@ func (self *TrezorDriver) Exchange(req proto.Message, results ...proto.Message) 
 			break
 		}
 	}
+	// fmt.Printf("    got: %s\n", trezor.Name(kind))
+
 	// Try to parse the reply into the requested reply message
 	if kind == uint16(trezor.MessageType_MessageType_Failure) {
 		// Trezor returned a failure, extract and return the message
@@ -131,5 +143,6 @@ func (self *TrezorDriver) Exchange(req proto.Message, results ...proto.Message) 
 	for i, res := range results {
 		expected[i] = trezor.Name(trezor.Type(res))
 	}
+
 	return 0, fmt.Errorf("trezor: expected reply types %s, got %s", expected, trezor.Name(kind))
 }

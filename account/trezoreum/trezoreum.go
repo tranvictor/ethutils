@@ -53,11 +53,12 @@ func (self *Trezoreum) Unlock() error {
 	for state != Ready {
 		if state == WaitingForPin {
 			pin := PromptPINFromStdin()
-			state, err = self.UnlockByPin(pin)
+			_, err = self.UnlockByPin(pin)
 			if err != nil {
 				fmt.Printf("Pin error: %s\n", err)
-				return err
+				continue
 			}
+			state = Ready
 		} else if state == WaitingForPassphrase {
 			return fmt.Errorf("Not support passphrase yet")
 		}
@@ -76,12 +77,12 @@ func (self *Trezoreum) trezorExchange(req proto.Message, results ...proto.Messag
 	}
 	if resIndex == len(results)-1 {
 		pin := PromptPINFromStdin()
-		_, err = self.UnlockByPin(pin)
+		resIndex, err = self.UnlockByPin(pin, results...)
 		if err != nil {
-			fmt.Printf("Pin error: %s\n", err)
+			fmt.Printf("Pin error 2: %s\n", err)
 			return resIndex, err
 		}
-		return self.core.Exchange(req, results...)
+		return resIndex, nil
 	}
 	return resIndex, err
 }
@@ -183,16 +184,22 @@ func (self *Trezoreum) Init() (trezor.Features, TrezorState, error) {
 	}
 }
 
-func (self *Trezoreum) UnlockByPin(pin string) (TrezorState, error) {
-	res, err := self.trezorExchange(&trezor.PinMatrixAck{Pin: &pin}, new(trezor.Success), new(trezor.PassphraseRequest))
+func (self *Trezoreum) UnlockByPin(pin string, results ...proto.Message) (int, error) {
+	// res, err := self.trezorExchange(&trezor.PinMatrixAck{Pin: &pin}, new(trezor.Success), new(trezor.PassphraseRequest))
+	results = append(results, new(trezor.Success))
+	results = append(results, new(trezor.PassphraseRequest))
+	res, err := self.core.Exchange(
+		&trezor.PinMatrixAck{Pin: &pin},
+		results...,
+	)
 	if err != nil {
-		return Unexpected, err
+		return 0, err
 	}
-	if res == 1 {
+	if res == len(results)-1 {
 		// this is to handle passphrase
-		return WaitingForPassphrase, fmt.Errorf("passphrase is not supported")
+		return 0, fmt.Errorf("passphrase is not supported")
 	}
-	return Ready, nil
+	return res, nil
 }
 
 func (self *Trezoreum) UnlockByPassphrase(passphrase string) (TrezorState, error) {
