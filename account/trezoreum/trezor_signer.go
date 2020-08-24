@@ -28,6 +28,7 @@ func (self *TrezorSigner) SignTx(tx *types.Transaction) (*types.Transaction, err
 		if err != nil {
 			return tx, err
 		}
+		self.deviceUnlocked = true
 	}
 	_, tx, err = self.trezor.Sign(self.path, tx, big.NewInt(self.chainID))
 	return tx, err

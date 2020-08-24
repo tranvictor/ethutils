@@ -38,6 +38,14 @@ func newEthReaderGeneric(nodes map[string]string, chain string) *EthReader {
 	}
 }
 
+func NewKovanReaderWithCustomNodes(nodes map[string]string) *EthReader {
+	return newEthReaderGeneric(nodes, "kovan")
+}
+
+func NewRinkebyReaderWithCustomNodes(nodes map[string]string) *EthReader {
+	return newEthReaderGeneric(nodes, "rinkeby")
+}
+
 func NewRopstenReaderWithCustomNodes(nodes map[string]string) *EthReader {
 	return newEthReaderGeneric(nodes, "ropsten")
 }
@@ -140,6 +148,60 @@ func (self *EthReader) GetTomoABI(address string) (*abi.ABI, error) {
 	return &result, nil
 }
 
+func (self *EthReader) GetRinkebyABIString(address string) (string, error) {
+	resp, err := http.Get(fmt.Sprintf("https://api-rinkeby.etherscan.io/api?module=contract&action=getabi&address=%s&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV", address))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	abiresp := abiresponse{}
+	err = json.Unmarshal(body, &abiresp)
+	if err != nil {
+		return "", err
+	}
+	return abiresp.Result, err
+}
+
+func (self *EthReader) GetRinkebyABI(address string) (*abi.ABI, error) {
+	body, err := self.GetRinkebyABIString(address)
+	if err != nil {
+		return nil, err
+	}
+	result, err := abi.JSON(strings.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (self *EthReader) GetKovanABIString(address string) (string, error) {
+	resp, err := http.Get(fmt.Sprintf("https://api-kovan.etherscan.io/api?module=contract&action=getabi&address=%s&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV", address))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	abiresp := abiresponse{}
+	err = json.Unmarshal(body, &abiresp)
+	if err != nil {
+		return "", err
+	}
+	return abiresp.Result, err
+}
+
+func (self *EthReader) GetKovanABI(address string) (*abi.ABI, error) {
+	body, err := self.GetKovanABIString(address)
+	if err != nil {
+		return nil, err
+	}
+	result, err := abi.JSON(strings.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 func (self *EthReader) GetRopstenABIString(address string) (string, error) {
 	resp, err := http.Get(fmt.Sprintf("https://api-ropsten.etherscan.io/api?module=contract&action=getabi&address=%s&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV", address))
 	if err != nil {
@@ -173,6 +235,10 @@ func (self *EthReader) GetABIString(address string) (string, error) {
 		return self.GetEthereumABIString(address)
 	case "ropsten":
 		return self.GetRopstenABIString(address)
+	case "kovan":
+		return self.GetKovanABIString(address)
+	case "rinkeby":
+		return self.GetRinkebyABIString(address)
 	case "tomo":
 		return self.GetTomoABIString(address)
 	}
@@ -185,6 +251,10 @@ func (self *EthReader) GetABI(address string) (*abi.ABI, error) {
 		return self.GetEthereumABI(address)
 	case "ropsten":
 		return self.GetRopstenABI(address)
+	case "kovan":
+		return self.GetKovanABI(address)
+	case "rinkeby":
+		return self.GetRinkebyABI(address)
 	case "tomo":
 		return self.GetTomoABI(address)
 	}
@@ -305,8 +375,16 @@ type gsresponse struct {
 	SafeLow float64 `json:"safeLow"`
 }
 
+func (self *EthReader) RecommendedGasPriceKovan() (float64, error) {
+	return 50, nil
+}
+
+func (self *EthReader) RecommendedGasPriceRinkeby() (float64, error) {
+	return 50, nil
+}
+
 func (self *EthReader) RecommendedGasPriceRopsten() (float64, error) {
-	return 5, nil
+	return 50, nil
 }
 
 func (self *EthReader) RecommendedGasPriceTomo() (float64, error) {
@@ -344,6 +422,10 @@ func (self *EthReader) RecommendedGasPrice() (float64, error) {
 		return self.RecommendedGasPriceEthereum()
 	case "ropsten":
 		return self.RecommendedGasPriceRopsten()
+	case "kovan":
+		return self.RecommendedGasPriceKovan()
+	case "rinkeby":
+		return self.RecommendedGasPriceRinkeby()
 	case "tomo":
 		return self.RecommendedGasPriceTomo()
 	}

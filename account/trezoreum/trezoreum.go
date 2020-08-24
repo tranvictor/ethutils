@@ -131,7 +131,7 @@ func (self *Trezoreum) Init() (trezor.Features, TrezorState, error) {
 	device := devices[0]
 	driver, err := device.Open()
 	if err != nil {
-		return trezor.Features{}, Unexpected, fmt.Errorf("Couldn't open trezor device")
+		return trezor.Features{}, Unexpected, fmt.Errorf("Couldn't open trezor device: %s", err)
 	}
 	self.core.SetDevice(driver)
 	// session := device.Session

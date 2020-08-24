@@ -196,7 +196,10 @@ func (self *OneNodeReader) HeaderByNumber(number int64) (*types.Header, error) {
 	if err != nil {
 		return nil, err
 	}
-	numberBig := big.NewInt(number)
+	var numberBig *big.Int
+	if number > -1 {
+		numberBig = big.NewInt(number)
+	}
 	timeout, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	defer cancel()
 	return ethcli.HeaderByNumber(timeout, numberBig)
