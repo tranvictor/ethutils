@@ -50,6 +50,20 @@ func NewRopstenReaderWithCustomNodes(nodes map[string]string) *EthReader {
 	return newEthReaderGeneric(nodes, "ropsten")
 }
 
+func NewKovanReader() *EthReader {
+	nodes := map[string]string{
+		"kovan-infura": "https://kovan.infura.io",
+	}
+	return NewKovanReaderWithCustomNodes(nodes)
+}
+
+func NewRinkebyReader() *EthReader {
+	nodes := map[string]string{
+		"rinkeby-infura": "https://rinkeby.infura.io",
+	}
+	return NewRinkebyReaderWithCustomNodes(nodes)
+}
+
 func NewRopstenReader() *EthReader {
 	nodes := map[string]string{
 		"ropsten-infura": "https://ropsten.infura.io",

@@ -93,6 +93,20 @@ func NewGenericBroadcaster(nodes map[string]string) *Broadcaster {
 	}
 }
 
+func NewKovanBroadcaster() *Broadcaster {
+	nodes := map[string]string{
+		"kovan-infura": "https://kovan.infura.io/v3/247128ae36b6444d944d4c3793c8e3f5",
+	}
+	return NewGenericBroadcaster(nodes)
+}
+
+func NewRinkebyBroadcaster() *Broadcaster {
+	nodes := map[string]string{
+		"rinkeby-infura": "https://rinkeby.infura.io/v3/247128ae36b6444d944d4c3793c8e3f5",
+	}
+	return NewGenericBroadcaster(nodes)
+}
+
 func NewRopstenBroadcaster() *Broadcaster {
 	nodes := map[string]string{
 		"ropsten-infura": "https://ropsten.infura.io/v3/247128ae36b6444d944d4c3793c8e3f5",
