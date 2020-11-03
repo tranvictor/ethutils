@@ -630,7 +630,7 @@ func (self *EthReader) ReadHistoryContractWithABI(atBlock int64, result interfac
 	if err != nil {
 		return err
 	}
-	return abi.Unpack(result, method, responseBytes)
+	return abi.UnpackToInterface(result, method, responseBytes)
 }
 
 func (self *EthReader) ReadContractWithABIAndFrom(result interface{}, from string, caddr string, abi *abi.ABI, method string, args ...interface{}) error {
@@ -638,7 +638,7 @@ func (self *EthReader) ReadContractWithABIAndFrom(result interface{}, from strin
 	if err != nil {
 		return err
 	}
-	return abi.Unpack(result, method, responseBytes)
+	return abi.UnpackToInterface(result, method, responseBytes)
 }
 
 func (self *EthReader) ReadContractWithABI(result interface{}, caddr string, abi *abi.ABI, method string, args ...interface{}) error {
@@ -646,7 +646,7 @@ func (self *EthReader) ReadContractWithABI(result interface{}, caddr string, abi
 	if err != nil {
 		return err
 	}
-	return abi.Unpack(result, method, responseBytes)
+	return abi.UnpackToInterface(result, method, responseBytes)
 }
 
 func (self *EthReader) ReadHistoryContract(atBlock int64, result interface{}, caddr string, method string, args ...interface{}) error {
