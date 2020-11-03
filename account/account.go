@@ -267,6 +267,10 @@ func (self *Account) PackERC20Data(function string, params ...interface{}) ([]by
 	return abi.Pack(function, params...)
 }
 
+func (self *Account) PackDataWithABI(a *abi.ABI, function string, params ...interface{}) ([]byte, error) {
+	return a.Pack(function, params...)
+}
+
 func (self *Account) PackData(caddr string, function string, params ...interface{}) ([]byte, error) {
 	abi, err := self.reader.GetABI(caddr)
 	if err != nil {
@@ -348,6 +352,45 @@ func (self *Account) DeployContractWithNonceAndPrice(
 	_, broadcasted, errors = self.broadcaster.BroadcastTx(signedTx)
 	caddr = crypto.CreateAddress(self.address, tx.Nonce())
 	return signedTx, broadcasted, caddr, errors
+}
+
+func (self *Account) CallContractWithABI(
+	a *abi.ABI, extraGas uint64,
+	value float64, caddr string, function string,
+	params ...interface{}) (tx *types.Transaction, broadcasted bool, errors error) {
+
+	nonce, err := self.GetMinedNonce()
+	if err != nil {
+		return nil, false, fmt.Errorf("cannot get nonce: %s", err)
+	}
+	priceGwei, err := self.reader.RecommendedGasPrice()
+	if err != nil {
+		return nil, false, fmt.Errorf("cannot get recommended gas price: %s", err)
+	}
+	return self.CallContractWithABINonceAndPrice(
+		a, nonce, priceGwei, extraGas, value, caddr, function, params...)
+}
+
+func (self *Account) CallContractWithABINonceAndPrice(
+	a *abi.ABI, nonce uint64, priceGwei float64, extraGas uint64,
+	value float64, caddr string, function string,
+	params ...interface{}) (tx *types.Transaction, broadcasted bool, errors error) {
+
+	if value < 0 {
+		panic("value must be non-negative")
+	}
+	data, err := self.PackDataWithABI(a, function, params...)
+	if err != nil {
+		return nil, false, fmt.Errorf("Cannot pack the params: %s", err)
+	}
+	gasLimit, err := self.reader.EstimateGas(
+		self.Address(), caddr, priceGwei, value, data)
+	if err != nil {
+		return nil, false, fmt.Errorf("Cannot estimate gas: %s", err)
+	}
+	gasLimit += extraGas
+	tx = ethutils.BuildTx(nonce, caddr, value, gasLimit, priceGwei, data)
+	return self.SignTxAndBroadcast(tx)
 }
 
 func (self *Account) CallContractWithNonceAndPrice(

@@ -229,7 +229,7 @@ func (self *OneNodeReader) GetLogs(fromBlock, toBlock int, addresses []string, t
 	return ethcli.FilterLogs(timeout, *q)
 }
 
-func (self *OneNodeReader) ReadContractToBytes(atBlock int64, caddr string, abi *abi.ABI, method string, args ...interface{}) ([]byte, error) {
+func (self *OneNodeReader) ReadContractToBytes(atBlock int64, from string, caddr string, abi *abi.ABI, method string, args ...interface{}) ([]byte, error) {
 	ethcli, err := self.EthClient()
 	if err != nil {
 		return nil, err
@@ -248,7 +248,7 @@ func (self *OneNodeReader) ReadContractToBytes(atBlock int64, caddr string, abi 
 	timeout, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	defer cancel()
 	return ethcli.CallContract(timeout, ethereum.CallMsg{
-		From:     common.Address{},
+		From:     eu.HexToAddress(from),
 		To:       &contract,
 		Gas:      0,
 		GasPrice: nil,

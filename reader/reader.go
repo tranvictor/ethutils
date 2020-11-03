@@ -16,6 +16,10 @@ import (
 	eu "github.com/tranvictor/ethutils"
 )
 
+var (
+	DEFAULT_ADDRESS string = "0x0000000000000000000000000000000000000000"
+)
+
 type EthReader struct {
 	chain             string
 	nodes             map[string]EthereumNode
@@ -52,21 +56,21 @@ func NewRopstenReaderWithCustomNodes(nodes map[string]string) *EthReader {
 
 func NewKovanReader() *EthReader {
 	nodes := map[string]string{
-		"kovan-infura": "https://kovan.infura.io",
+		"kovan-infura": "https://kovan.infura.io/v3/247128ae36b6444d944d4c3793c8e3f5",
 	}
 	return NewKovanReaderWithCustomNodes(nodes)
 }
 
 func NewRinkebyReader() *EthReader {
 	nodes := map[string]string{
-		"rinkeby-infura": "https://rinkeby.infura.io",
+		"rinkeby-infura": "https://rinkeby.infura.io/v3/247128ae36b6444d944d4c3793c8e3f5",
 	}
 	return NewRinkebyReaderWithCustomNodes(nodes)
 }
 
 func NewRopstenReader() *EthReader {
 	nodes := map[string]string{
-		"ropsten-infura": "https://ropsten.infura.io",
+		"ropsten-infura": "https://ropsten.infura.io/v3/247128ae36b6444d944d4c3793c8e3f5",
 	}
 	return NewRopstenReaderWithCustomNodes(nodes)
 }
@@ -597,12 +601,12 @@ type readContractToBytesResponse struct {
 	Error error
 }
 
-func (self *EthReader) ReadContractToBytes(atBlock int64, caddr string, abi *abi.ABI, method string, args ...interface{}) ([]byte, error) {
+func (self *EthReader) ReadContractToBytes(atBlock int64, from string, caddr string, abi *abi.ABI, method string, args ...interface{}) ([]byte, error) {
 	resCh := make(chan readContractToBytesResponse, len(self.nodes))
 	for i, _ := range self.nodes {
 		n := self.nodes[i]
 		go func() {
-			data, err := n.ReadContractToBytes(atBlock, caddr, abi, method, args...)
+			data, err := n.ReadContractToBytes(atBlock, from, caddr, abi, method, args...)
 			resCh <- readContractToBytesResponse{
 				Data:  data,
 				Error: wrapError(err, n.NodeName()),
@@ -621,7 +625,16 @@ func (self *EthReader) ReadContractToBytes(atBlock int64, caddr string, abi *abi
 }
 
 func (self *EthReader) ReadHistoryContractWithABI(atBlock int64, result interface{}, caddr string, abi *abi.ABI, method string, args ...interface{}) error {
-	responseBytes, err := self.ReadContractToBytes(int64(atBlock), caddr, abi, method, args...)
+	responseBytes, err := self.ReadContractToBytes(
+		int64(atBlock), DEFAULT_ADDRESS, caddr, abi, method, args...)
+	if err != nil {
+		return err
+	}
+	return abi.Unpack(result, method, responseBytes)
+}
+
+func (self *EthReader) ReadContractWithABIAndFrom(result interface{}, from string, caddr string, abi *abi.ABI, method string, args ...interface{}) error {
+	responseBytes, err := self.ReadContractToBytes(-1, from, caddr, abi, method, args...)
 	if err != nil {
 		return err
 	}
@@ -629,7 +642,7 @@ func (self *EthReader) ReadHistoryContractWithABI(atBlock int64, result interfac
 }
 
 func (self *EthReader) ReadContractWithABI(result interface{}, caddr string, abi *abi.ABI, method string, args ...interface{}) error {
-	responseBytes, err := self.ReadContractToBytes(-1, caddr, abi, method, args...)
+	responseBytes, err := self.ReadContractToBytes(-1, DEFAULT_ADDRESS, caddr, abi, method, args...)
 	if err != nil {
 		return err
 	}
