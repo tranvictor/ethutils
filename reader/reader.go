@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"math/big"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -393,6 +395,66 @@ type gsresponse struct {
 	SafeLow float64 `json:"safeLow"`
 }
 
+func (self *EthReader) RecommendedGasPriceFromEthGasStation(link string) (low, average, fast float64, err error) {
+	resp, err := http.Get(link)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	prices := gsresponse{}
+	err = json.Unmarshal(body, &prices)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	return prices.SafeLow / 10, prices.Average / 10, prices.Fast / 10, nil
+}
+
+// {"status":"1","message":"OK","result":{"LastBlock":"11210958","SafeGasPrice":"79","ProposeGasPrice":"88","FastGasPrice":"104"}}
+type etherscanGasResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Result  struct {
+		LastBlock       string `json:"LastBlock"`
+		SafeGasPrice    string `json:"SafeGasPrice"`
+		ProposeGasPrice string `json:"ProposeGasPrice"`
+		FastGasPrice    string `json:"FastGasPrice"`
+	} `json:"result"`
+}
+
+func (self *EthReader) RecommendedGasPriceFromEtherscan(link string) (low, average, fast float64, err error) {
+	resp, err := http.Get(link)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	prices := etherscanGasResponse{}
+	err = json.Unmarshal(body, &prices)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	low, err = strconv.ParseFloat(prices.Result.SafeGasPrice, 64)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	average, err = strconv.ParseFloat(prices.Result.ProposeGasPrice, 64)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	fast, err = strconv.ParseFloat(prices.Result.FastGasPrice, 64)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	return low, average, fast, nil
+}
+
 func (self *EthReader) RecommendedGasPriceKovan() (float64, error) {
 	return 50, nil
 }
@@ -413,21 +475,15 @@ func (self *EthReader) RecommendedGasPriceEthereum() (float64, error) {
 	self.gpmu.Lock()
 	defer self.gpmu.Unlock()
 	if self.latestGasPrice == 0 || time.Now().Unix()-self.gasPriceTimestamp > 30 {
-		resp, err := http.Get("https://ethgasstation.info/json/ethgasAPI.json")
-		if err != nil {
-			return 0, err
+		// TODO
+		_, _, gsFast, err1 := self.RecommendedGasPriceFromEthGasStation("https://ethgasstation.info/json/ethgasAPI.json")
+		_, _, esFast, err2 := self.RecommendedGasPriceFromEtherscan("https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV")
+
+		if err1 != nil && err2 != nil {
+			return 0, fmt.Errorf("eth gas station gas price lookup failed: %s, etherscan gas price lookup failed: %s", err1, err2)
 		}
-		defer resp.Body.Close()
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return 0, err
-		}
-		prices := gsresponse{}
-		err = json.Unmarshal(body, &prices)
-		if err != nil {
-			return 0, err
-		}
-		self.latestGasPrice = float64(prices.Fast) / 10.0
+
+		self.latestGasPrice = math.Max(gsFast, esFast) + 10
 		self.gasPriceTimestamp = time.Now().Unix()
 	}
 	return self.latestGasPrice, nil
