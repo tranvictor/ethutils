@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"math"
 	"math/big"
 	"net/http"
 	"strconv"
@@ -476,14 +475,17 @@ func (self *EthReader) RecommendedGasPriceEthereum() (float64, error) {
 	defer self.gpmu.Unlock()
 	if self.latestGasPrice == 0 || time.Now().Unix()-self.gasPriceTimestamp > 30 {
 		// TODO
-		_, _, gsFast, err1 := self.RecommendedGasPriceFromEthGasStation("https://ethgasstation.info/json/ethgasAPI.json")
+		// _, _, gsFast, err1 := self.RecommendedGasPriceFromEthGasStation("https://ethgasstation.info/json/ethgasAPI.json")
 		_, _, esFast, err2 := self.RecommendedGasPriceFromEtherscan("https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV")
-
-		if err1 != nil && err2 != nil {
-			return 0, fmt.Errorf("eth gas station gas price lookup failed: %s, etherscan gas price lookup failed: %s", err1, err2)
+		if err2 != nil {
+			return 0, fmt.Errorf("etherscan gas price lookup failed: %s", err2)
 		}
 
-		self.latestGasPrice = math.Max(gsFast, esFast) + 10
+		// if err1 != nil && err2 != nil {
+		// 	return 0, fmt.Errorf("eth gas station gas price lookup failed: %s, etherscan gas price lookup failed: %s", err1, err2)
+		// }
+
+		self.latestGasPrice = esFast + 10
 		self.gasPriceTimestamp = time.Now().Unix()
 	}
 	return self.latestGasPrice, nil
