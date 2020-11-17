@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -45,7 +45,7 @@ func (self *Broadcaster) BroadcastTx(tx *types.Transaction) (string, bool, error
 			"tx": fmt.Errorf("Tx is not valid, couldn't use rlp to encode it"),
 		})
 	}
-	return self.Broadcast(common.ToHex(data))
+	return self.Broadcast(hexutil.Encode(data))
 }
 
 // data must be hex encoded of the signed tx
