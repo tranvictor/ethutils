@@ -14,8 +14,8 @@ type TomoKeySigner struct {
 }
 
 func (self *TomoKeySigner) SignTx(tx *types.Transaction) (*types.Transaction, error) {
-	opts := bind.NewKeyedTransactor(self.key)
-	return opts.Signer(types.NewEIP155Signer(big.NewInt(88)), crypto.PubkeyToAddress(self.key.PublicKey), tx)
+	opts := bind.NewKeyedTransactorWithChainID(self.key, big.NewInt(88))
+	return opts.Signer(crypto.PubkeyToAddress(self.key.PublicKey), tx)
 }
 
 func NewTomoKeySigner(key *ecdsa.PrivateKey) *TomoKeySigner {

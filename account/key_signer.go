@@ -14,7 +14,7 @@ type KeySigner struct {
 
 func (self *KeySigner) SignTx(tx *types.Transaction) (*types.Transaction, error) {
 	opts := bind.NewKeyedTransactor(self.key)
-	return opts.Signer(types.HomesteadSigner{}, crypto.PubkeyToAddress(self.key.PublicKey), tx)
+	return opts.Signer(crypto.PubkeyToAddress(self.key.PublicKey), tx)
 }
 
 func NewKeySigner(key *ecdsa.PrivateKey) *KeySigner {
