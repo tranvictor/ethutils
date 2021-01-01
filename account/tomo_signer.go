@@ -14,7 +14,10 @@ type TomoKeySigner struct {
 }
 
 func (self *TomoKeySigner) SignTx(tx *types.Transaction) (*types.Transaction, error) {
-	opts := bind.NewKeyedTransactorWithChainID(self.key, big.NewInt(88))
+	opts, err := bind.NewKeyedTransactorWithChainID(self.key, big.NewInt(88))
+	if err != nil {
+		return nil, err
+	}
 	return opts.Signer(crypto.PubkeyToAddress(self.key.PublicKey), tx)
 }
 
