@@ -58,8 +58,8 @@ func (self *Account) ListOfPendingNonces() ([]uint64, error) {
 	return result, nil
 }
 
-func (self *Account) SendETHWithNonceAndPrice(nonce uint64, priceGwei float64, ethAmount *big.Int, to string) (tx *types.Transaction, broadcasted bool, errors error) {
-	tx = ethutils.BuildExactSendETHTx(nonce, to, ethAmount, priceGwei)
+func (self *Account) SendETHWithNonceAndPrice(nonce uint64, gasLimit uint64, priceGwei float64, ethAmount *big.Int, to string) (tx *types.Transaction, broadcasted bool, errors error) {
+	tx = ethutils.BuildExactSendETHTx(nonce, to, ethAmount, gasLimit, priceGwei)
 	signedTx, err := self.signer.SignTx(tx)
 	if err != nil {
 		return tx, false, fmt.Errorf("couldn't sign the tx: %s", err)
@@ -89,7 +89,7 @@ func (self *Account) SendAllETHWithPrice(priceGwei float64, to string) (tx *type
 	if amount.Cmp(big.NewInt(0)) != 1 {
 		return nil, false, fmt.Errorf("not enough to do a tx with gas price: %f gwei", priceGwei)
 	}
-	return self.SendETHWithNonceAndPrice(nonce, priceGwei, amount, to)
+	return self.SendETHWithNonceAndPrice(nonce, 30000, priceGwei, amount, to)
 }
 
 func (self *Account) SendAllETH(to string) (tx *types.Transaction, broadcasted bool, errors error) {
@@ -109,7 +109,7 @@ func (self *Account) SendAllETH(to string) (tx *types.Transaction, broadcasted b
 	if amount.Cmp(big.NewInt(0)) != 1 {
 		return nil, false, fmt.Errorf("not enough to do a tx with gas price: %f gwei", priceGwei)
 	}
-	return self.SendETHWithNonceAndPrice(nonce, priceGwei, amount, to)
+	return self.SendETHWithNonceAndPrice(nonce, 30000, priceGwei, amount, to)
 }
 
 func (self *Account) SetERC20Allowance(tokenAddr string, spender string, tokenAmount float64) (tx *types.Transaction, broadcasted bool, errors error) {
@@ -150,7 +150,7 @@ func (self *Account) SendETH(ethAmount float64, to string) (tx *types.Transactio
 		return nil, false, fmt.Errorf("cannot get recommended gas price: %s", err)
 	}
 	amount := ethutils.FloatToBigInt(ethAmount, 18)
-	return self.SendETHWithNonceAndPrice(nonce, priceGwei, amount, to)
+	return self.SendETHWithNonceAndPrice(nonce, 30000, priceGwei, amount, to)
 }
 
 func (self *Account) SendETHToMultipleAddressesWithPrice(priceGwei float64, amounts []float64, addresses []string) (txs []*types.Transaction, broadcasteds []bool, errors []error) {
@@ -169,7 +169,7 @@ func (self *Account) SendETHToMultipleAddressesWithPrice(priceGwei float64, amou
 	for i, addr := range addresses {
 		amount := amounts[i]
 		newNonce := nonce + uint64(i)
-		tx, broadcasted, e := self.SendETHWithNonceAndPrice(newNonce, priceGwei, ethutils.FloatToBigInt(amount, 18), addr)
+		tx, broadcasted, e := self.SendETHWithNonceAndPrice(newNonce, 30000, priceGwei, ethutils.FloatToBigInt(amount, 18), addr)
 		txs = append(txs, tx)
 		broadcasteds = append(broadcasteds, broadcasted)
 		errors = append(errors, e)
@@ -197,7 +197,7 @@ func (self *Account) SendETHToMultipleAddresses(amounts []float64, addresses []s
 	for i, addr := range addresses {
 		amount := amounts[i]
 		newNonce := nonce + uint64(i)
-		tx, broadcasted, e := self.SendETHWithNonceAndPrice(newNonce, priceGwei, ethutils.FloatToBigInt(amount, 18), addr)
+		tx, broadcasted, e := self.SendETHWithNonceAndPrice(newNonce, 30000, priceGwei, ethutils.FloatToBigInt(amount, 18), addr)
 		txs = append(txs, tx)
 		broadcasteds = append(broadcasteds, broadcasted)
 		errors = append(errors, e)

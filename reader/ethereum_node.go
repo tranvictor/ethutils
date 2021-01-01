@@ -11,7 +11,7 @@ import (
 type EthereumNode interface {
 	NodeName() string
 	NodeURL() string
-	EstimateGas(from, to string, priceGwei, value float64, data []byte) (gas uint64, err error)
+	EstimateGas(from, to string, priceGwei float64, value *big.Int, data []byte) (gas uint64, err error)
 	GetCode(address string) (code []byte, err error)
 	GetBalance(address string) (balance *big.Int, err error)
 	GetMinedNonce(address string) (nonce uint64, err error)

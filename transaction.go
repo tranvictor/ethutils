@@ -30,8 +30,8 @@ func BuildSendETHTx(nonce uint64, to string, ethAmount float64, priceGwei float6
 	return BuildTx(nonce, to, ethAmount, 30000, priceGwei, []byte{})
 }
 
-func BuildExactSendETHTx(nonce uint64, to string, ethAmount *big.Int, priceGwei float64) (tx *types.Transaction) {
-	return BuildExactTx(nonce, to, ethAmount, 30000, priceGwei, []byte{})
+func BuildExactSendETHTx(nonce uint64, to string, ethAmount *big.Int, gasLimit uint64, priceGwei float64) (tx *types.Transaction) {
+	return BuildExactTx(nonce, to, ethAmount, gasLimit, priceGwei, []byte{})
 }
 
 func BuildContractCreationTx(nonce uint64, ethAmount *big.Int, gasLimit uint64, priceGwei float64, data []byte) (tx *types.Transaction) {

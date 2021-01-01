@@ -300,7 +300,7 @@ type estimateGasResult struct {
 	Error error
 }
 
-func (self *EthReader) EstimateGas(from, to string, priceGwei, value float64, data []byte) (uint64, error) {
+func (self *EthReader) EstimateExactGas(from, to string, priceGwei float64, value *big.Int, data []byte) (uint64, error) {
 	resCh := make(chan estimateGasResult, len(self.nodes))
 	for i, _ := range self.nodes {
 		n := self.nodes[i]
@@ -321,6 +321,10 @@ func (self *EthReader) EstimateGas(from, to string, priceGwei, value float64, da
 		errs = append(errs, result.Error)
 	}
 	return 0, fmt.Errorf("Couldn't read from any nodes: %s", errorInfo(errs))
+}
+
+func (self *EthReader) EstimateGas(from, to string, priceGwei, value float64, data []byte) (uint64, error) {
+	return self.EstimateExactGas(from, to, priceGwei, eu.FloatToBigInt(value, 18), data)
 }
 
 type getCodeResponse struct {
@@ -384,6 +388,51 @@ func (self *EthReader) TxInfoFromHash(tx string) (eu.TxInfo, error) {
 			}
 		}
 	}
+}
+
+type ksresponse struct {
+	Data struct {
+		Fast     string
+		Standard string
+		Low      string
+		Default  string
+	}
+	Success bool
+}
+
+func (self *EthReader) RecommendedGasPriceFromKyberSwap() (low, average, fast float64, err error) {
+	resp, err := http.Get("https://production-cache.kyber.network/gasPrice")
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	prices := ksresponse{}
+	err = json.Unmarshal(body, &prices)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	if !prices.Success {
+		return 0, 0, 0, fmt.Errorf("failed response from kyberswap")
+	}
+
+	fastFloat, err := strconv.ParseFloat(prices.Data.Fast, 64)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	standardFloat, err := strconv.ParseFloat(prices.Data.Standard, 64)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	lowFloat, err := strconv.ParseFloat(prices.Data.Low, 64)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	return lowFloat, standardFloat, fastFloat, nil
 }
 
 // gas station response
@@ -476,9 +525,10 @@ func (self *EthReader) RecommendedGasPriceEthereum() (float64, error) {
 	if self.latestGasPrice == 0 || time.Now().Unix()-self.gasPriceTimestamp > 30 {
 		// TODO
 		// _, _, gsFast, err1 := self.RecommendedGasPriceFromEthGasStation("https://ethgasstation.info/json/ethgasAPI.json")
-		_, _, esFast, err2 := self.RecommendedGasPriceFromEtherscan("https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV")
-		if err2 != nil {
-			return 0, fmt.Errorf("etherscan gas price lookup failed: %s", err2)
+		// _, _, esFast, err2 := self.RecommendedGasPriceFromEtherscan("https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV")
+		_, _, esFast, err3 := self.RecommendedGasPriceFromKyberSwap()
+		if err3 != nil {
+			return 0, fmt.Errorf("etherscan gas price lookup failed: %s", err3)
 		}
 
 		// if err1 != nil && err2 != nil {

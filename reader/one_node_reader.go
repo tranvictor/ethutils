@@ -72,7 +72,7 @@ func (self *OneNodeReader) EthClient() (*ethclient.Client, error) {
 	return self.ethClient, err
 }
 
-func (self *OneNodeReader) EstimateGas(from, to string, priceGwei, value float64, data []byte) (uint64, error) {
+func (self *OneNodeReader) EstimateGas(from, to string, priceGwei float64, value *big.Int, data []byte) (uint64, error) {
 	fromAddr := common.HexToAddress(from)
 	var toAddrPtr *common.Address
 	if to != "" {
@@ -80,7 +80,6 @@ func (self *OneNodeReader) EstimateGas(from, to string, priceGwei, value float64
 		toAddrPtr = &toAddr
 	}
 	price := eu.FloatToBigInt(priceGwei, 9)
-	v := eu.FloatToBigInt(value, 18)
 	ethcli, err := self.EthClient()
 	if err != nil {
 		return 0, err
@@ -92,7 +91,7 @@ func (self *OneNodeReader) EstimateGas(from, to string, priceGwei, value float64
 		To:       toAddrPtr,
 		Gas:      0,
 		GasPrice: price,
-		Value:    v,
+		Value:    value,
 		Data:     data,
 	})
 }
