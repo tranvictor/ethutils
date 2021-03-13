@@ -93,6 +93,24 @@ func NewGenericBroadcaster(nodes map[string]string) *Broadcaster {
 	}
 }
 
+func NewBSCBroadcaster() *Broadcaster {
+	nodes := map[string]string{
+		"binance":  "https://bsc-dataseed.binance.org",
+		"defibit":  "https://bsc-dataseed1.defibit.io",
+		"ninicoin": "https://bsc-dataseed1.ninicoin.io",
+	}
+	return NewGenericBroadcaster(nodes)
+}
+
+func NewBSCTestnetBroadcaster() *Broadcaster {
+	nodes := map[string]string{
+		"binance1": "https://data-seed-prebsc-1-s1.binance.org:8545",
+		"binance2": "https://data-seed-prebsc-2-s1.binance.org:8545",
+		"binance3": "https://data-seed-prebsc-1-s2.binance.org:8545",
+	}
+	return NewGenericBroadcaster(nodes)
+}
+
 func NewKovanBroadcaster() *Broadcaster {
 	nodes := map[string]string{
 		"kovan-infura": "https://kovan.infura.io/v3/247128ae36b6444d944d4c3793c8e3f5",

@@ -43,6 +43,14 @@ func newEthReaderGeneric(nodes map[string]string, chain string) *EthReader {
 	}
 }
 
+func NewBSCReaderWithCustomNodes(nodes map[string]string) *EthReader {
+	return newEthReaderGeneric(nodes, "bsc")
+}
+
+func NewBSCTestnetReaderWithCustomNodes(nodes map[string]string) *EthReader {
+	return newEthReaderGeneric(nodes, "bsc-test")
+}
+
 func NewKovanReaderWithCustomNodes(nodes map[string]string) *EthReader {
 	return newEthReaderGeneric(nodes, "kovan")
 }
@@ -67,6 +75,24 @@ func NewRinkebyReader() *EthReader {
 		"rinkeby-infura": "https://rinkeby.infura.io/v3/247128ae36b6444d944d4c3793c8e3f5",
 	}
 	return NewRinkebyReaderWithCustomNodes(nodes)
+}
+
+func NewBSCReader() *EthReader {
+	nodes := map[string]string{
+		"binance":  "https://bsc-dataseed.binance.org",
+		"defibit":  "https://bsc-dataseed1.defibit.io",
+		"ninicoin": "https://bsc-dataseed1.ninicoin.io",
+	}
+	return NewBSCReaderWithCustomNodes(nodes)
+}
+
+func NewBSCTestnetReader() *EthReader {
+	nodes := map[string]string{
+		"binance1": "https://data-seed-prebsc-1-s1.binance.org:8545",
+		"binance2": "https://data-seed-prebsc-2-s1.binance.org:8545",
+		"binance3": "https://data-seed-prebsc-1-s2.binance.org:8545",
+	}
+	return NewBSCReaderWithCustomNodes(nodes)
 }
 
 func NewRopstenReader() *EthReader {
@@ -123,6 +149,60 @@ func (self *EthReader) GetEthereumABIString(address string) (string, error) {
 
 func (self *EthReader) GetEthereumABI(address string) (*abi.ABI, error) {
 	body, err := self.GetEthereumABIString(address)
+	if err != nil {
+		return nil, err
+	}
+	result, err := abi.JSON(strings.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (self *EthReader) GetBSCTestnetABIString(address string) (string, error) {
+	resp, err := http.Get(fmt.Sprintf("https://api-testnet.bscscan.com/api?module=contract&action=getabi&address=%s&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV", address))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	abiresp := abiresponse{}
+	err = json.Unmarshal(body, &abiresp)
+	if err != nil {
+		return "", err
+	}
+	return abiresp.Result, err
+}
+
+func (self *EthReader) GetBSCTestnetABI(address string) (*abi.ABI, error) {
+	body, err := self.GetBSCTestnetABIString(address)
+	if err != nil {
+		return nil, err
+	}
+	result, err := abi.JSON(strings.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (self *EthReader) GetBSCABIString(address string) (string, error) {
+	resp, err := http.Get(fmt.Sprintf("https://api.bscscan.com/api?module=contract&action=getabi&address=%s&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV", address))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	abiresp := abiresponse{}
+	err = json.Unmarshal(body, &abiresp)
+	if err != nil {
+		return "", err
+	}
+	return abiresp.Result, err
+}
+
+func (self *EthReader) GetBSCABI(address string) (*abi.ABI, error) {
+	body, err := self.GetBSCABIString(address)
 	if err != nil {
 		return nil, err
 	}
@@ -260,6 +340,10 @@ func (self *EthReader) GetABIString(address string) (string, error) {
 		return self.GetRinkebyABIString(address)
 	case "tomo":
 		return self.GetTomoABIString(address)
+	case "bsc":
+		return self.GetBSCABIString(address)
+	case "bsc-test":
+		return self.GetBSCTestnetABIString(address)
 	}
 	return "", fmt.Errorf("'%s' chain is not supported", self.chain)
 }
@@ -276,6 +360,10 @@ func (self *EthReader) GetABI(address string) (*abi.ABI, error) {
 		return self.GetRinkebyABI(address)
 	case "tomo":
 		return self.GetTomoABI(address)
+	case "bsc":
+		return self.GetBSCABI(address)
+	case "bsc-test":
+		return self.GetBSCTestnetABI(address)
 	}
 	return nil, fmt.Errorf("'%s' chain is not supported", self.chain)
 }
@@ -519,6 +607,14 @@ func (self *EthReader) RecommendedGasPriceTomo() (float64, error) {
 	return 1, nil
 }
 
+func (self *EthReader) RecommendedGasPriceBSC() (float64, error) {
+	return 10, nil
+}
+
+func (self *EthReader) RecommendedGasPriceBSCTestnet() (float64, error) {
+	return 10, nil
+}
+
 func (self *EthReader) RecommendedGasPriceEthereum() (float64, error) {
 	self.gpmu.Lock()
 	defer self.gpmu.Unlock()
@@ -554,6 +650,10 @@ func (self *EthReader) RecommendedGasPrice() (float64, error) {
 		return self.RecommendedGasPriceRinkeby()
 	case "tomo":
 		return self.RecommendedGasPriceTomo()
+	case "bsc":
+		return self.RecommendedGasPriceBSC()
+	case "bsc-test":
+		return self.RecommendedGasPriceBSCTestnet()
 	}
 	return 0, fmt.Errorf("'%s' chain is not supported", self.chain)
 }
