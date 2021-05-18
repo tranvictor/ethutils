@@ -21,12 +21,22 @@ var (
 	DEFAULT_ADDRESS string = "0x0000000000000000000000000000000000000000"
 )
 
+const (
+	DEFAULT_ETHERSCAN_APIKEY string = "UBB257TI824FC7HUSPT66KZUMGBPRN3IWV"
+	DEFAULT_BSCSCAN_APIKEY   string = "62TU8Z81F7ESNJT38ZVRBSX7CNN4QZSP5I"
+	DEFAULT_TOMOSCAN_APIKEY  string = ""
+)
+
 type EthReader struct {
 	chain             string
 	nodes             map[string]EthereumNode
 	latestGasPrice    float64
 	gasPriceTimestamp int64
 	gpmu              sync.Mutex
+
+	etherscanAPIKey string
+	bscscanAPIKey   string
+	tomoscanAPIKey  string
 }
 
 func newEthReaderGeneric(nodes map[string]string, chain string) *EthReader {
@@ -40,6 +50,9 @@ func newEthReaderGeneric(nodes map[string]string, chain string) *EthReader {
 		latestGasPrice:    0.0,
 		gasPriceTimestamp: 0,
 		gpmu:              sync.Mutex{},
+		etherscanAPIKey:   DEFAULT_ETHERSCAN_APIKEY,
+		bscscanAPIKey:     DEFAULT_BSCSCAN_APIKEY,
+		tomoscanAPIKey:    DEFAULT_TOMOSCAN_APIKEY,
 	}
 }
 
@@ -125,249 +138,6 @@ func NewEthReader() *EthReader {
 	return NewEthReaderWithCustomNodes(nodes)
 }
 
-// gas station response
-type abiresponse struct {
-	Status  string `json:"string"`
-	Message string `json:"message"`
-	Result  string `json:"result"`
-}
-
-func (self *EthReader) GetEthereumABIString(address string) (string, error) {
-	resp, err := http.Get(fmt.Sprintf("https://api.etherscan.io/api?module=contract&action=getabi&address=%s&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV", address))
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	abiresp := abiresponse{}
-	err = json.Unmarshal(body, &abiresp)
-	if err != nil {
-		return "", err
-	}
-	return abiresp.Result, err
-}
-
-func (self *EthReader) GetEthereumABI(address string) (*abi.ABI, error) {
-	body, err := self.GetEthereumABIString(address)
-	if err != nil {
-		return nil, err
-	}
-	result, err := abi.JSON(strings.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-func (self *EthReader) GetBSCTestnetABIString(address string) (string, error) {
-	resp, err := http.Get(fmt.Sprintf("https://api-testnet.bscscan.com/api?module=contract&action=getabi&address=%s&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV", address))
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	abiresp := abiresponse{}
-	err = json.Unmarshal(body, &abiresp)
-	if err != nil {
-		return "", err
-	}
-	return abiresp.Result, err
-}
-
-func (self *EthReader) GetBSCTestnetABI(address string) (*abi.ABI, error) {
-	body, err := self.GetBSCTestnetABIString(address)
-	if err != nil {
-		return nil, err
-	}
-	result, err := abi.JSON(strings.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-func (self *EthReader) GetBSCABIString(address string) (string, error) {
-	resp, err := http.Get(fmt.Sprintf("https://api.bscscan.com/api?module=contract&action=getabi&address=%s&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV", address))
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	abiresp := abiresponse{}
-	err = json.Unmarshal(body, &abiresp)
-	if err != nil {
-		return "", err
-	}
-	return abiresp.Result, err
-}
-
-func (self *EthReader) GetBSCABI(address string) (*abi.ABI, error) {
-	body, err := self.GetBSCABIString(address)
-	if err != nil {
-		return nil, err
-	}
-	result, err := abi.JSON(strings.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-// gas station response
-type tomoabiresponse struct {
-	Contract struct {
-		ABICode string `json:"abiCode"`
-	} `json:"contract"`
-}
-
-func (self *EthReader) GetTomoABIString(address string) (string, error) {
-	resp, err := http.Get(fmt.Sprintf("https://scan.tomochain.com/api/accounts/%s", address))
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	abiresp := tomoabiresponse{}
-	err = json.Unmarshal(body, &abiresp)
-	if err != nil {
-		return "", err
-	}
-	return abiresp.Contract.ABICode, nil
-}
-
-func (self *EthReader) GetTomoABI(address string) (*abi.ABI, error) {
-	body, err := self.GetTomoABIString(address)
-	if err != nil {
-		return nil, err
-	}
-	result, err := abi.JSON(strings.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-func (self *EthReader) GetRinkebyABIString(address string) (string, error) {
-	resp, err := http.Get(fmt.Sprintf("https://api-rinkeby.etherscan.io/api?module=contract&action=getabi&address=%s&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV", address))
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	abiresp := abiresponse{}
-	err = json.Unmarshal(body, &abiresp)
-	if err != nil {
-		return "", err
-	}
-	return abiresp.Result, err
-}
-
-func (self *EthReader) GetRinkebyABI(address string) (*abi.ABI, error) {
-	body, err := self.GetRinkebyABIString(address)
-	if err != nil {
-		return nil, err
-	}
-	result, err := abi.JSON(strings.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-func (self *EthReader) GetKovanABIString(address string) (string, error) {
-	resp, err := http.Get(fmt.Sprintf("https://api-kovan.etherscan.io/api?module=contract&action=getabi&address=%s&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV", address))
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	abiresp := abiresponse{}
-	err = json.Unmarshal(body, &abiresp)
-	if err != nil {
-		return "", err
-	}
-	return abiresp.Result, err
-}
-
-func (self *EthReader) GetKovanABI(address string) (*abi.ABI, error) {
-	body, err := self.GetKovanABIString(address)
-	if err != nil {
-		return nil, err
-	}
-	result, err := abi.JSON(strings.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-func (self *EthReader) GetRopstenABIString(address string) (string, error) {
-	resp, err := http.Get(fmt.Sprintf("https://api-ropsten.etherscan.io/api?module=contract&action=getabi&address=%s&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV", address))
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	abiresp := abiresponse{}
-	err = json.Unmarshal(body, &abiresp)
-	if err != nil {
-		return "", err
-	}
-	return abiresp.Result, err
-}
-
-func (self *EthReader) GetRopstenABI(address string) (*abi.ABI, error) {
-	body, err := self.GetRopstenABIString(address)
-	if err != nil {
-		return nil, err
-	}
-	result, err := abi.JSON(strings.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-func (self *EthReader) GetABIString(address string) (string, error) {
-	switch self.chain {
-	case "ethereum":
-		return self.GetEthereumABIString(address)
-	case "ropsten":
-		return self.GetRopstenABIString(address)
-	case "kovan":
-		return self.GetKovanABIString(address)
-	case "rinkeby":
-		return self.GetRinkebyABIString(address)
-	case "tomo":
-		return self.GetTomoABIString(address)
-	case "bsc":
-		return self.GetBSCABIString(address)
-	case "bsc-test":
-		return self.GetBSCTestnetABIString(address)
-	}
-	return "", fmt.Errorf("'%s' chain is not supported", self.chain)
-}
-
-func (self *EthReader) GetABI(address string) (*abi.ABI, error) {
-	switch self.chain {
-	case "ethereum":
-		return self.GetEthereumABI(address)
-	case "ropsten":
-		return self.GetRopstenABI(address)
-	case "kovan":
-		return self.GetKovanABI(address)
-	case "rinkeby":
-		return self.GetRinkebyABI(address)
-	case "tomo":
-		return self.GetTomoABI(address)
-	case "bsc":
-		return self.GetBSCABI(address)
-	case "bsc-test":
-		return self.GetBSCTestnetABI(address)
-	}
-	return nil, fmt.Errorf("'%s' chain is not supported", self.chain)
-}
-
 func errorInfo(errs []error) string {
 	estrs := []string{}
 	for i, e := range errs {
@@ -381,6 +151,18 @@ func wrapError(e error, name string) error {
 		return nil
 	}
 	return fmt.Errorf("%s: %s", name, e)
+}
+
+func (self *EthReader) SetEtherscanAPIKey(key string) {
+	self.etherscanAPIKey = key
+}
+
+func (self *EthReader) SetBSCScanAPIKey(key string) {
+	self.bscscanAPIKey = key
+}
+
+func (self *EthReader) SetTomoScanAPIKey(key string) {
+	self.tomoscanAPIKey = key
 }
 
 type estimateGasResult struct {
