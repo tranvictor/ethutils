@@ -15,7 +15,7 @@ func NewKovanAccountFromKeystore(file string, password string) (*Account, error)
 		return nil, err
 	}
 	return &Account{
-		NewKeySigner(key),
+		NewKeySigner(key, 42),
 		reader.NewKovanReader(),
 		broadcaster.NewKovanBroadcaster(),
 		crypto.PubkeyToAddress(key.PublicKey),
@@ -28,7 +28,7 @@ func NewKovanAccountFromPrivateKey(hex string) (*Account, error) {
 		return nil, err
 	}
 	return &Account{
-		NewKeySigner(key),
+		NewKeySigner(key, 42),
 		reader.NewKovanReader(),
 		broadcaster.NewKovanBroadcaster(),
 		crypto.PubkeyToAddress(key.PublicKey),
@@ -41,7 +41,7 @@ func NewKovanAccountFromPrivateKeyFile(file string) (*Account, error) {
 		return nil, err
 	}
 	return &Account{
-		NewKeySigner(key),
+		NewKeySigner(key, 42),
 		reader.NewKovanReader(),
 		broadcaster.NewKovanBroadcaster(),
 		crypto.PubkeyToAddress(key.PublicKey),
@@ -49,7 +49,7 @@ func NewKovanAccountFromPrivateKeyFile(file string) (*Account, error) {
 }
 
 func NewKovanTrezorAccount(path string, address string) (*Account, error) {
-	signer, err := trezoreum.NewTrezorSigner(path, address)
+	signer, err := trezoreum.NewTrezorSignerGeneric(path, address, 42)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func NewKovanTrezorAccount(path string, address string) (*Account, error) {
 }
 
 func NewKovanLedgerAccount(path string, address string) (*Account, error) {
-	signer, err := ledgereum.NewLedgerSigner(path, address)
+	signer, err := ledgereum.NewLedgerSignerGeneric(path, address, 42)
 	if err != nil {
 		return nil, err
 	}

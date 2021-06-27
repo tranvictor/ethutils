@@ -15,7 +15,7 @@ func NewRinkebyAccountFromKeystore(file string, password string) (*Account, erro
 		return nil, err
 	}
 	return &Account{
-		NewKeySigner(key),
+		NewKeySigner(key, 4),
 		reader.NewRinkebyReader(),
 		broadcaster.NewRinkebyBroadcaster(),
 		crypto.PubkeyToAddress(key.PublicKey),
@@ -28,7 +28,7 @@ func NewRinkebyAccountFromPrivateKey(hex string) (*Account, error) {
 		return nil, err
 	}
 	return &Account{
-		NewKeySigner(key),
+		NewKeySigner(key, 4),
 		reader.NewRinkebyReader(),
 		broadcaster.NewRinkebyBroadcaster(),
 		crypto.PubkeyToAddress(key.PublicKey),
@@ -41,7 +41,7 @@ func NewRinkebyAccountFromPrivateKeyFile(file string) (*Account, error) {
 		return nil, err
 	}
 	return &Account{
-		NewKeySigner(key),
+		NewKeySigner(key, 4),
 		reader.NewRinkebyReader(),
 		broadcaster.NewRinkebyBroadcaster(),
 		crypto.PubkeyToAddress(key.PublicKey),
@@ -49,7 +49,7 @@ func NewRinkebyAccountFromPrivateKeyFile(file string) (*Account, error) {
 }
 
 func NewRinkebyTrezorAccount(path string, address string) (*Account, error) {
-	signer, err := trezoreum.NewTrezorSigner(path, address)
+	signer, err := trezoreum.NewTrezorSignerGeneric(path, address, 4)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func NewRinkebyTrezorAccount(path string, address string) (*Account, error) {
 }
 
 func NewRinkebyLedgerAccount(path string, address string) (*Account, error) {
-	signer, err := ledgereum.NewLedgerSigner(path, address)
+	signer, err := ledgereum.NewLedgerSignerGeneric(path, address, 4)
 	if err != nil {
 		return nil, err
 	}

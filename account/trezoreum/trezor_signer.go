@@ -53,6 +53,25 @@ func NewRopstenTrezorSigner(path string, address string) (*TrezorSigner, error) 
 	}, nil
 }
 
+func NewTrezorSignerGeneric(path string, address string, chainID int64) (*TrezorSigner, error) {
+	p, err := accounts.ParseDerivationPath(path)
+	if err != nil {
+		return nil, err
+	}
+	trezor, err := NewTrezoreum()
+	if err != nil {
+		return nil, err
+	}
+	return &TrezorSigner{
+		p,
+		sync.Mutex{},
+		sync.Mutex{},
+		false,
+		trezor,
+		chainID,
+	}, nil
+}
+
 func NewTrezorSigner(path string, address string) (*TrezorSigner, error) {
 	p, err := accounts.ParseDerivationPath(path)
 	if err != nil {

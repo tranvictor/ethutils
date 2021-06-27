@@ -8,13 +8,12 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	eu "github.com/tranvictor/ethutils"
+	. "github.com/tranvictor/ethutils/explorers"
 )
 
 var (
@@ -28,114 +27,19 @@ const (
 )
 
 type EthReader struct {
-	chain             string
-	nodes             map[string]EthereumNode
-	latestGasPrice    float64
-	gasPriceTimestamp int64
-	gpmu              sync.Mutex
-
-	etherscanAPIKey string
-	bscscanAPIKey   string
-	tomoscanAPIKey  string
+	nodes map[string]EthereumNode
+	be    BlockExplorer
 }
 
-func newEthReaderGeneric(nodes map[string]string, chain string) *EthReader {
+func NewEthReaderGeneric(nodes map[string]string, be BlockExplorer) *EthReader {
 	ns := map[string]EthereumNode{}
 	for name, c := range nodes {
 		ns[name] = NewOneNodeReader(name, c)
 	}
 	return &EthReader{
-		chain:             chain,
-		nodes:             ns,
-		latestGasPrice:    0.0,
-		gasPriceTimestamp: 0,
-		gpmu:              sync.Mutex{},
-		etherscanAPIKey:   DEFAULT_ETHERSCAN_APIKEY,
-		bscscanAPIKey:     DEFAULT_BSCSCAN_APIKEY,
-		tomoscanAPIKey:    DEFAULT_TOMOSCAN_APIKEY,
+		nodes: ns,
+		be:    be,
 	}
-}
-
-func NewBSCReaderWithCustomNodes(nodes map[string]string) *EthReader {
-	return newEthReaderGeneric(nodes, "bsc")
-}
-
-func NewBSCTestnetReaderWithCustomNodes(nodes map[string]string) *EthReader {
-	return newEthReaderGeneric(nodes, "bsc-test")
-}
-
-func NewKovanReaderWithCustomNodes(nodes map[string]string) *EthReader {
-	return newEthReaderGeneric(nodes, "kovan")
-}
-
-func NewRinkebyReaderWithCustomNodes(nodes map[string]string) *EthReader {
-	return newEthReaderGeneric(nodes, "rinkeby")
-}
-
-func NewRopstenReaderWithCustomNodes(nodes map[string]string) *EthReader {
-	return newEthReaderGeneric(nodes, "ropsten")
-}
-
-func NewKovanReader() *EthReader {
-	nodes := map[string]string{
-		"kovan-infura": "https://kovan.infura.io/v3/247128ae36b6444d944d4c3793c8e3f5",
-	}
-	return NewKovanReaderWithCustomNodes(nodes)
-}
-
-func NewRinkebyReader() *EthReader {
-	nodes := map[string]string{
-		"rinkeby-infura": "https://rinkeby.infura.io/v3/247128ae36b6444d944d4c3793c8e3f5",
-	}
-	return NewRinkebyReaderWithCustomNodes(nodes)
-}
-
-func NewBSCReader() *EthReader {
-	nodes := map[string]string{
-		"binance":  "https://bsc-dataseed.binance.org",
-		"defibit":  "https://bsc-dataseed1.defibit.io",
-		"ninicoin": "https://bsc-dataseed1.ninicoin.io",
-	}
-	return NewBSCReaderWithCustomNodes(nodes)
-}
-
-func NewBSCTestnetReader() *EthReader {
-	nodes := map[string]string{
-		"binance1": "https://data-seed-prebsc-1-s1.binance.org:8545",
-		"binance2": "https://data-seed-prebsc-2-s1.binance.org:8545",
-		"binance3": "https://data-seed-prebsc-1-s2.binance.org:8545",
-	}
-	return NewBSCReaderWithCustomNodes(nodes)
-}
-
-func NewRopstenReader() *EthReader {
-	nodes := map[string]string{
-		"ropsten-infura": "https://ropsten.infura.io/v3/247128ae36b6444d944d4c3793c8e3f5",
-	}
-	return NewRopstenReaderWithCustomNodes(nodes)
-}
-
-func NewTomoReaderWithCustomNodes(nodes map[string]string) *EthReader {
-	return newEthReaderGeneric(nodes, "tomo")
-}
-
-func NewTomoReader() *EthReader {
-	nodes := map[string]string{
-		"mainnet-tomo": "https://rpc.tomochain.com",
-	}
-	return NewTomoReaderWithCustomNodes(nodes)
-}
-
-func NewEthReaderWithCustomNodes(nodes map[string]string) *EthReader {
-	return newEthReaderGeneric(nodes, "ethereum")
-}
-
-func NewEthReader() *EthReader {
-	nodes := map[string]string{
-		"mainnet-alchemy": "https://eth-mainnet.alchemyapi.io/jsonrpc/YP5f6eM2wC9c2nwJfB0DC1LObdSY7Qfv",
-		"mainnet-infura":  "https://mainnet.infura.io/v3/247128ae36b6444d944d4c3793c8e3f5",
-	}
-	return NewEthReaderWithCustomNodes(nodes)
 }
 
 func errorInfo(errs []error) string {
@@ -151,18 +55,6 @@ func wrapError(e error, name string) error {
 		return nil
 	}
 	return fmt.Errorf("%s: %s", name, e)
-}
-
-func (self *EthReader) SetEtherscanAPIKey(key string) {
-	self.etherscanAPIKey = key
-}
-
-func (self *EthReader) SetBSCScanAPIKey(key string) {
-	self.bscscanAPIKey = key
-}
-
-func (self *EthReader) SetTomoScanAPIKey(key string) {
-	self.tomoscanAPIKey = key
 }
 
 type estimateGasResult struct {
@@ -313,131 +205,27 @@ type gsresponse struct {
 	SafeLow float64 `json:"safeLow"`
 }
 
-func (self *EthReader) RecommendedGasPriceFromEthGasStation(link string) (low, average, fast float64, err error) {
-	resp, err := http.Get(link)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	prices := gsresponse{}
-	err = json.Unmarshal(body, &prices)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	return prices.SafeLow / 10, prices.Average / 10, prices.Fast / 10, nil
-}
-
-// {"status":"1","message":"OK","result":{"LastBlock":"11210958","SafeGasPrice":"79","ProposeGasPrice":"88","FastGasPrice":"104"}}
-type etherscanGasResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-	Result  struct {
-		LastBlock       string `json:"LastBlock"`
-		SafeGasPrice    string `json:"SafeGasPrice"`
-		ProposeGasPrice string `json:"ProposeGasPrice"`
-		FastGasPrice    string `json:"FastGasPrice"`
-	} `json:"result"`
-}
-
-func (self *EthReader) RecommendedGasPriceFromEtherscan(link string) (low, average, fast float64, err error) {
-	resp, err := http.Get(link)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	prices := etherscanGasResponse{}
-	err = json.Unmarshal(body, &prices)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	low, err = strconv.ParseFloat(prices.Result.SafeGasPrice, 64)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	average, err = strconv.ParseFloat(prices.Result.ProposeGasPrice, 64)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	fast, err = strconv.ParseFloat(prices.Result.FastGasPrice, 64)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	return low, average, fast, nil
-}
-
-func (self *EthReader) RecommendedGasPriceKovan() (float64, error) {
-	return 50, nil
-}
-
-func (self *EthReader) RecommendedGasPriceRinkeby() (float64, error) {
-	return 50, nil
-}
-
-func (self *EthReader) RecommendedGasPriceRopsten() (float64, error) {
-	return 50, nil
-}
-
-func (self *EthReader) RecommendedGasPriceTomo() (float64, error) {
-	return 1, nil
-}
-
-func (self *EthReader) RecommendedGasPriceBSC() (float64, error) {
-	return 10, nil
-}
-
-func (self *EthReader) RecommendedGasPriceBSCTestnet() (float64, error) {
-	return 10, nil
-}
-
-func (self *EthReader) RecommendedGasPriceEthereum() (float64, error) {
-	self.gpmu.Lock()
-	defer self.gpmu.Unlock()
-	if self.latestGasPrice == 0 || time.Now().Unix()-self.gasPriceTimestamp > 30 {
-		// TODO
-		// _, _, gsFast, err1 := self.RecommendedGasPriceFromEthGasStation("https://ethgasstation.info/json/ethgasAPI.json")
-		// _, _, esFast, err2 := self.RecommendedGasPriceFromEtherscan("https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=UBB257TI824FC7HUSPT66KZUMGBPRN3IWV")
-		_, _, esFast, err3 := self.RecommendedGasPriceFromKyberSwap()
-		if err3 != nil {
-			return 0, fmt.Errorf("etherscan gas price lookup failed: %s", err3)
-		}
-
-		// if err1 != nil && err2 != nil {
-		// 	return 0, fmt.Errorf("eth gas station gas price lookup failed: %s, etherscan gas price lookup failed: %s", err1, err2)
-		// }
-
-		self.latestGasPrice = esFast + 10
-		self.gasPriceTimestamp = time.Now().Unix()
-	}
-	return self.latestGasPrice, nil
-}
+// func (self *EthReader) RecommendedGasPriceFromEthGasStation(link string) (low, average, fast float64, err error) {
+// 	resp, err := http.Get(link)
+// 	if err != nil {
+// 		return 0, 0, 0, err
+// 	}
+// 	defer resp.Body.Close()
+// 	body, err := ioutil.ReadAll(resp.Body)
+// 	if err != nil {
+// 		return 0, 0, 0, err
+// 	}
+// 	prices := gsresponse{}
+// 	err = json.Unmarshal(body, &prices)
+// 	if err != nil {
+// 		return 0, 0, 0, err
+// 	}
+// 	return prices.SafeLow / 10, prices.Average / 10, prices.Fast / 10, nil
+// }
 
 // return gwei
 func (self *EthReader) RecommendedGasPrice() (float64, error) {
-	switch self.chain {
-	case "ethereum":
-		return self.RecommendedGasPriceEthereum()
-	case "ropsten":
-		return self.RecommendedGasPriceRopsten()
-	case "kovan":
-		return self.RecommendedGasPriceKovan()
-	case "rinkeby":
-		return self.RecommendedGasPriceRinkeby()
-	case "tomo":
-		return self.RecommendedGasPriceTomo()
-	case "bsc":
-		return self.RecommendedGasPriceBSC()
-	case "bsc-test":
-		return self.RecommendedGasPriceBSCTestnet()
-	}
-	return 0, fmt.Errorf("'%s' chain is not supported", self.chain)
+	return self.be.RecommendedGasPrice()
 }
 
 type getBalanceResponse struct {
@@ -576,15 +364,6 @@ func (self *EthReader) TransactionByHash(txHash string) (tx *eu.Transaction, isP
 	}
 	return nil, false, fmt.Errorf("Couldn't read from any nodes: %s", errorInfo(errs))
 }
-
-// TODO: this method can't utilize all of the nodes because the result reference
-// will be written in parallel and it is not thread safe
-// func (self *EthReader) Call(result interface{}, method string, args ...interface{}) error {
-// 	for _, node := range self.nodes {
-// 		return node.Call(result, method, args...)
-// 	}
-// 	return fmt.Errorf("no nodes to call")
-// }
 
 type readContractToBytesResponse struct {
 	Data  []byte
@@ -818,4 +597,21 @@ func (self *EthReader) CurrentBlock() (uint64, error) {
 		errs = append(errs, result.Error)
 	}
 	return 0, fmt.Errorf("Couldn't read from any nodes: %s", errorInfo(errs))
+}
+
+func (self *EthReader) GetABIString(address string) (string, error) {
+	return self.be.GetABIString(address)
+}
+
+func (self *EthReader) GetABI(address string) (*abi.ABI, error) {
+	body, err := self.GetABIString(address)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := abi.JSON(strings.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
 }

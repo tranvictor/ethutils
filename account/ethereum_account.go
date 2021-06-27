@@ -15,7 +15,7 @@ func NewAccountFromKeystore(file string, password string) (*Account, error) {
 		return nil, err
 	}
 	return &Account{
-		NewKeySigner(key),
+		NewKeySigner(key, 1),
 		reader.NewEthReader(),
 		broadcaster.NewBroadcaster(),
 		crypto.PubkeyToAddress(key.PublicKey),
@@ -28,7 +28,7 @@ func NewAccountFromPrivateKey(hex string) (*Account, error) {
 		return nil, err
 	}
 	return &Account{
-		NewKeySigner(key),
+		NewKeySigner(key, 1),
 		reader.NewEthReader(),
 		broadcaster.NewBroadcaster(),
 		crypto.PubkeyToAddress(key.PublicKey),
@@ -41,7 +41,7 @@ func NewAccountFromPrivateKeyFile(file string) (*Account, error) {
 		return nil, err
 	}
 	return &Account{
-		NewKeySigner(key),
+		NewKeySigner(key, 1),
 		reader.NewEthReader(),
 		broadcaster.NewBroadcaster(),
 		crypto.PubkeyToAddress(key.PublicKey),
@@ -49,7 +49,7 @@ func NewAccountFromPrivateKeyFile(file string) (*Account, error) {
 }
 
 func NewLedgerAccount(path string, address string) (*Account, error) {
-	signer, err := ledgereum.NewLedgerSigner(path, address)
+	signer, err := ledgereum.NewLedgerSignerGeneric(path, address, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func NewLedgerAccount(path string, address string) (*Account, error) {
 }
 
 func NewTrezorAccount(path string, address string) (*Account, error) {
-	signer, err := trezoreum.NewTrezorSigner(path, address)
+	signer, err := trezoreum.NewTrezorSignerGeneric(path, address, 1)
 	if err != nil {
 		return nil, err
 	}

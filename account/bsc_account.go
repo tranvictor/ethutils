@@ -15,7 +15,7 @@ func NewBSCAccountFromKeystore(file string, password string) (*Account, error) {
 		return nil, err
 	}
 	return &Account{
-		NewKeySigner(key),
+		NewKeySigner(key, 56),
 		reader.NewBSCReader(),
 		broadcaster.NewBSCBroadcaster(),
 		crypto.PubkeyToAddress(key.PublicKey),
@@ -28,7 +28,7 @@ func NewBSCAccountFromPrivateKey(hex string) (*Account, error) {
 		return nil, err
 	}
 	return &Account{
-		NewKeySigner(key),
+		NewKeySigner(key, 56),
 		reader.NewBSCReader(),
 		broadcaster.NewBSCBroadcaster(),
 		crypto.PubkeyToAddress(key.PublicKey),
@@ -41,7 +41,7 @@ func NewBSCAccountFromPrivateKeyFile(file string) (*Account, error) {
 		return nil, err
 	}
 	return &Account{
-		NewKeySigner(key),
+		NewKeySigner(key, 56),
 		reader.NewBSCReader(),
 		broadcaster.NewBSCBroadcaster(),
 		crypto.PubkeyToAddress(key.PublicKey),
@@ -49,7 +49,7 @@ func NewBSCAccountFromPrivateKeyFile(file string) (*Account, error) {
 }
 
 func NewBSCTrezorAccount(path string, address string) (*Account, error) {
-	signer, err := trezoreum.NewTrezorSigner(path, address)
+	signer, err := trezoreum.NewTrezorSignerGeneric(path, address, 56)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func NewBSCTrezorAccount(path string, address string) (*Account, error) {
 }
 
 func NewBSCLedgerAccount(path string, address string) (*Account, error) {
-	signer, err := ledgereum.NewLedgerSigner(path, address)
+	signer, err := ledgereum.NewLedgerSignerGeneric(path, address, 56)
 	if err != nil {
 		return nil, err
 	}

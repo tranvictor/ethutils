@@ -65,6 +65,22 @@ func (self *LedgerSigner) SignTx(tx *types.Transaction) (*types.Transaction, err
 	return tx, err
 }
 
+func NewLedgerSignerGeneric(path string, address string, chainID int64) (*LedgerSigner, error) {
+	p, err := accounts.ParseDerivationPath(path)
+	if err != nil {
+		return nil, err
+	}
+	return &LedgerSigner{
+		p,
+		newLedgerDriver(),
+		nil,
+		false,
+		sync.Mutex{},
+		sync.Mutex{},
+		chainID,
+	}, nil
+}
+
 func NewLedgerSigner(path string, address string) (*LedgerSigner, error) {
 	p, err := accounts.ParseDerivationPath(path)
 	if err != nil {

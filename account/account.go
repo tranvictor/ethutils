@@ -11,6 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/tranvictor/ethutils"
+	"github.com/tranvictor/ethutils/account/ledgereum"
+	"github.com/tranvictor/ethutils/account/trezoreum"
 	"github.com/tranvictor/ethutils/broadcaster"
 	"github.com/tranvictor/ethutils/reader"
 )
@@ -20,6 +22,45 @@ type Account struct {
 	reader      *reader.EthReader
 	broadcaster *broadcaster.Broadcaster
 	address     common.Address
+}
+
+func NewKeystoreAccountGeneric(file string, password string, reader *reader.EthReader, broadcaster *broadcaster.Broadcaster, chainID int64) (*Account, error) {
+	_, key, err := PrivateKeyFromKeystore(file, password)
+	if err != nil {
+		return nil, err
+	}
+	return &Account{
+		NewKeySigner(key, chainID),
+		reader,
+		broadcaster,
+		crypto.PubkeyToAddress(key.PublicKey),
+	}, nil
+}
+
+func NewTrezorAccountGeneric(path string, address string, reader *reader.EthReader, broadcaster *broadcaster.Broadcaster, chainID int64) (*Account, error) {
+	signer, err := trezoreum.NewTrezorSignerGeneric(path, address, chainID)
+	if err != nil {
+		return nil, err
+	}
+	return &Account{
+		signer,
+		reader,
+		broadcaster,
+		common.HexToAddress(address),
+	}, nil
+}
+
+func NewLedgerAccountGeneric(path string, address string, reader *reader.EthReader, broadcaster *broadcaster.Broadcaster, chainID int64) (*Account, error) {
+	signer, err := ledgereum.NewLedgerSignerGeneric(path, address, chainID)
+	if err != nil {
+		return nil, err
+	}
+	return &Account{
+		signer,
+		reader,
+		broadcaster,
+		common.HexToAddress(address),
+	}, nil
 }
 
 func (self *Account) SetReader(r *reader.EthReader) {

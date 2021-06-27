@@ -15,7 +15,7 @@ func NewRopstenAccountFromKeystore(file string, password string) (*Account, erro
 		return nil, err
 	}
 	return &Account{
-		NewKeySigner(key),
+		NewKeySigner(key, 3),
 		reader.NewRopstenReader(),
 		broadcaster.NewRopstenBroadcaster(),
 		crypto.PubkeyToAddress(key.PublicKey),
@@ -28,7 +28,7 @@ func NewRopstenAccountFromPrivateKey(hex string) (*Account, error) {
 		return nil, err
 	}
 	return &Account{
-		NewKeySigner(key),
+		NewKeySigner(key, 3),
 		reader.NewRopstenReader(),
 		broadcaster.NewRopstenBroadcaster(),
 		crypto.PubkeyToAddress(key.PublicKey),
@@ -41,7 +41,7 @@ func NewRopstenAccountFromPrivateKeyFile(file string) (*Account, error) {
 		return nil, err
 	}
 	return &Account{
-		NewKeySigner(key),
+		NewKeySigner(key, 3),
 		reader.NewRopstenReader(),
 		broadcaster.NewRopstenBroadcaster(),
 		crypto.PubkeyToAddress(key.PublicKey),
@@ -49,7 +49,7 @@ func NewRopstenAccountFromPrivateKeyFile(file string) (*Account, error) {
 }
 
 func NewRopstenTrezorAccount(path string, address string) (*Account, error) {
-	signer, err := trezoreum.NewTrezorSigner(path, address)
+	signer, err := trezoreum.NewTrezorSignerGeneric(path, address, 3)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func NewRopstenTrezorAccount(path string, address string) (*Account, error) {
 }
 
 func NewRopstenLedgerAccount(path string, address string) (*Account, error) {
-	signer, err := ledgereum.NewLedgerSigner(path, address)
+	signer, err := ledgereum.NewLedgerSignerGeneric(path, address, 3)
 	if err != nil {
 		return nil, err
 	}
