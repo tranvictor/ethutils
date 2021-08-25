@@ -301,10 +301,7 @@ func (self *Account) CallContract(
 }
 
 func (self *Account) PackERC20Data(function string, params ...interface{}) ([]byte, error) {
-	abi, err := ethutils.GetERC20ABI()
-	if err != nil {
-		return nil, err
-	}
+	abi := ethutils.GetERC20ABI()
 	return abi.Pack(function, params...)
 }
 

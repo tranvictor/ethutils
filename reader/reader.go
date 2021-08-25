@@ -435,42 +435,30 @@ func (self *EthReader) ReadContract(result interface{}, caddr string, method str
 }
 
 func (self *EthReader) HistoryERC20Balance(atBlock int64, caddr string, user string) (*big.Int, error) {
-	abi, err := eu.GetERC20ABI()
-	if err != nil {
-		return nil, err
-	}
+	abi := eu.GetERC20ABI()
 	result := big.NewInt(0)
-	err = self.ReadHistoryContractWithABI(atBlock, &result, caddr, abi, "balanceOf", eu.HexToAddress(user))
+	err := self.ReadHistoryContractWithABI(atBlock, &result, caddr, abi, "balanceOf", eu.HexToAddress(user))
 	return result, err
 }
 
 func (self *EthReader) ERC20Balance(caddr string, user string) (*big.Int, error) {
-	abi, err := eu.GetERC20ABI()
-	if err != nil {
-		return nil, err
-	}
+	abi := eu.GetERC20ABI()
 	result := big.NewInt(0)
-	err = self.ReadContractWithABI(&result, caddr, abi, "balanceOf", eu.HexToAddress(user))
+	err := self.ReadContractWithABI(&result, caddr, abi, "balanceOf", eu.HexToAddress(user))
 	return result, err
 }
 
 func (self *EthReader) HistoryERC20Decimal(atBlock int64, caddr string) (int64, error) {
-	abi, err := eu.GetERC20ABI()
-	if err != nil {
-		return 0, err
-	}
+	abi := eu.GetERC20ABI()
 	var result uint8
-	err = self.ReadHistoryContractWithABI(atBlock, &result, caddr, abi, "decimals")
+	err := self.ReadHistoryContractWithABI(atBlock, &result, caddr, abi, "decimals")
 	return int64(result), err
 }
 
 func (self *EthReader) ERC20Decimal(caddr string) (int64, error) {
-	abi, err := eu.GetERC20ABI()
-	if err != nil {
-		return 0, err
-	}
+	abi := eu.GetERC20ABI()
 	var result uint8
-	err = self.ReadContractWithABI(&result, caddr, abi, "decimals")
+	err := self.ReadContractWithABI(&result, caddr, abi, "decimals")
 	return int64(result), err
 }
 
@@ -503,12 +491,9 @@ func (self *EthReader) HeaderByNumber(number int64) (*types.Header, error) {
 }
 
 func (self *EthReader) HistoryERC20Allowance(atBlock int64, caddr string, owner string, spender string) (*big.Int, error) {
-	abi, err := eu.GetERC20ABI()
-	if err != nil {
-		return nil, err
-	}
+	abi := eu.GetERC20ABI()
 	result := big.NewInt(0)
-	err = self.ReadHistoryContractWithABI(
+	err := self.ReadHistoryContractWithABI(
 		atBlock,
 		&result, caddr, abi,
 		"allowance",
@@ -519,12 +504,9 @@ func (self *EthReader) HistoryERC20Allowance(atBlock int64, caddr string, owner 
 }
 
 func (self *EthReader) ERC20Allowance(caddr string, owner string, spender string) (*big.Int, error) {
-	abi, err := eu.GetERC20ABI()
-	if err != nil {
-		return nil, err
-	}
+	abi := eu.GetERC20ABI()
 	result := big.NewInt(0)
-	err = self.ReadContractWithABI(
+	err := self.ReadContractWithABI(
 		&result, caddr, abi,
 		"allowance",
 		eu.HexToAddress(owner),

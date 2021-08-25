@@ -32,20 +32,18 @@ func getABIFromFile(filename string) (*abi.ABI, error) {
 	return &result, nil
 }
 
-func GetERC20ABI() (*abi.ABI, error) {
-	result, err := abi.JSON(strings.NewReader(erc20abi))
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
+func GetMultiCallABI() *abi.ABI {
+	result, _ := abi.JSON(strings.NewReader(multicallabi))
+	return &result
+}
+
+func GetERC20ABI() *abi.ABI {
+	result, _ := abi.JSON(strings.NewReader(erc20abi))
+	return &result
 }
 
 func PackERC20Data(function string, params ...interface{}) ([]byte, error) {
-	abi, err := GetERC20ABI()
-	if err != nil {
-		return []byte{}, err
-	}
-	return abi.Pack(function, params...)
+	return GetERC20ABI().Pack(function, params...)
 }
 
 func FloatToInt(amount float64) int64 {
