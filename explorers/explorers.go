@@ -54,6 +54,13 @@ func NewPolygonscan() *EtherscanLikeExplorer {
 	)
 }
 
+func NewFtmscan() *EtherscanLikeExplorer {
+	return NewEtherscanLikeExplorer(
+		"https://api.ftmscan.com",
+		"IDMTDBFTDKE7SSHX2V2FYKWWQ9WTVW73HR",
+	)
+}
+
 func NewMumbaiPolygonscan() *EtherscanLikeExplorer {
 	return nil
 }
