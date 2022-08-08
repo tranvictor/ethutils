@@ -120,32 +120,33 @@ func (self *EthReader) GetCode(address string) (code []byte, err error) {
 func (self *EthReader) TxInfoFromHash(tx string) (eu.TxInfo, error) {
 	txObj, isPending, err := self.TransactionByHash(tx)
 	if err != nil {
-		return eu.TxInfo{"error", nil, nil, nil}, err
+		return eu.TxInfo{"error", nil, nil, nil, nil}, err
 	}
 	if txObj == nil {
-		return eu.TxInfo{"notfound", nil, nil, nil}, nil
+		return eu.TxInfo{"notfound", nil, nil, nil, nil}, nil
 	} else {
 		if isPending {
-			return eu.TxInfo{"pending", txObj, nil, nil}, nil
+			return eu.TxInfo{"pending", txObj, nil, nil, nil}, nil
 		} else {
 			receipt, _ := self.TransactionReceipt(tx)
 			if receipt == nil {
-				return eu.TxInfo{"pending", txObj, nil, nil}, nil
+				return eu.TxInfo{"pending", txObj, nil, nil, nil}, nil
 			} else {
+				block, _ := self.HeaderByNumber(receipt.BlockNumber.Int64())
 				// only byzantium has status field at the moment
 				// mainnet, ropsten are byzantium, other chains such as
 				// devchain, kovan are not.
 				// if PostState is a hash, it is pre-byzantium and all
 				// txs with PostState are considered done
 				if len(receipt.PostState) == len(common.Hash{}) {
-					return eu.TxInfo{"done", txObj, []eu.InternalTx{}, receipt}, nil
+					return eu.TxInfo{"done", txObj, []eu.InternalTx{}, receipt, block}, nil
 				} else {
 					if receipt.Status == 1 {
 						// successful tx
-						return eu.TxInfo{"done", txObj, []eu.InternalTx{}, receipt}, nil
+						return eu.TxInfo{"done", txObj, []eu.InternalTx{}, receipt, block}, nil
 					}
 					// failed tx
-					return eu.TxInfo{"reverted", txObj, []eu.InternalTx{}, receipt}, nil
+					return eu.TxInfo{"reverted", txObj, []eu.InternalTx{}, receipt, block}, nil
 				}
 			}
 		}

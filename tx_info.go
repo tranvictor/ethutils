@@ -20,6 +20,7 @@ type TxInfo struct {
 	Tx          *Transaction
 	InternalTxs []InternalTx
 	Receipt     *types.Receipt
+	BlockHeader *types.Header
 }
 
 func (self *TxInfo) GasCost() *big.Int {
