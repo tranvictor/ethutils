@@ -107,6 +107,16 @@ func (self *OneNodeReader) GetCode(address string) (code []byte, err error) {
 	return ethcli.CodeAt(timeout, addr, nil)
 }
 
+func (self *OneNodeReader) GetGasPriceSuggestion() (*big.Int, error) {
+	ethcli, err := self.EthClient()
+	if err != nil {
+		return nil, err
+	}
+	timeout, cancel := context.WithTimeout(context.Background(), TIMEOUT)
+	defer cancel()
+	return ethcli.SuggestGasPrice(timeout)
+}
+
 func (self *OneNodeReader) GetBalance(address string) (balance *big.Int, err error) {
 	ethcli, err := self.EthClient()
 	if err != nil {

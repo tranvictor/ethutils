@@ -226,7 +226,43 @@ type gsresponse struct {
 
 // return gwei
 func (self *EthReader) RecommendedGasPrice() (float64, error) {
-	return self.be.RecommendedGasPrice()
+	price, err := self.be.RecommendedGasPrice()
+	if err != nil {
+		priceWei, err := self.GetGasPriceWeiSuggestion()
+		if err != nil {
+			return 0, err
+		}
+		return eu.BigToFloat(priceWei, 9), nil
+	}
+	return price, nil
+}
+
+type getGasSuggestionResponse struct {
+	GasPrice *big.Int
+	Error    error
+}
+
+func (self *EthReader) GetGasPriceWeiSuggestion() (*big.Int, error) {
+	resCh := make(chan getGasSuggestionResponse, len(self.nodes))
+	for i, _ := range self.nodes {
+		n := self.nodes[i]
+		go func() {
+			price, err := n.GetGasPriceSuggestion()
+			resCh <- getGasSuggestionResponse{
+				GasPrice: price,
+				Error:    wrapError(err, n.NodeName()),
+			}
+		}()
+	}
+	errs := []error{}
+	for i := 0; i < len(self.nodes); i++ {
+		result := <-resCh
+		if result.Error == nil {
+			return result.GasPrice, result.Error
+		}
+		errs = append(errs, result.Error)
+	}
+	return nil, fmt.Errorf("Couldn't read from any nodes: %s", errorInfo(errs))
 }
 
 type getBalanceResponse struct {

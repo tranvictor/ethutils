@@ -19,6 +19,7 @@ type EthereumNode interface {
 	TransactionReceipt(txHash string) (receipt *types.Receipt, err error)
 	TransactionByHash(txHash string) (tx *eu.Transaction, isPending bool, err error)
 	// Call(result interface{}, method string, args ...interface{}) error
+	GetGasPriceSuggestion() (*big.Int, error)
 	ReadContractToBytes(atBlock int64, from string, caddr string, abi *abi.ABI, method string, args ...interface{}) ([]byte, error)
 	HeaderByNumber(number int64) (*types.Header, error)
 	GetLogs(fromBlock, toBlock int, addresses []string, topic string) ([]types.Log, error)
